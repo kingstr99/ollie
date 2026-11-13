@@ -4,7 +4,11 @@ An original island-settling board game for 2–6 players, played hot-seat in the
 
 ## Play
 
-Open `index.html` in any modern browser. There's no build step, no server and no dependencies. Your game is saved automatically in the browser.
+**Online with friends:** open the published page on claude.ai, enter your name, and click **Create online game**. Tell friends the 5-character code; they open the same page and join from the list or by typing the code. Each player sees only their own hand. Friends need a claude.ai account and edit access to the page (Share → invite by email as Editor).
+
+**On one device:** open `index.html` in any modern browser and choose **New game on this device**. There's no build step, no server and no dependencies. Your game is saved automatically in the browser.
+
+To republish the online version, run `node tools/build-artifact.js` and publish `dist/hexhaven.html` with the `db` and `user` capabilities.
 
 ## Maps
 
@@ -33,4 +37,5 @@ To add a map, add an entry to `MAPS` in `js/board.js` that returns a list of axi
 
 - `js/board.js`: map shapes, terrain and number placement, harbors, vertex/edge graph
 - `js/rules.js`: game state and rules (plain JSON state)
-- `js/ui.js`: SVG rendering, setup screen, dialogs
+- `js/ui.js`: SVG rendering, online lobbies and sync, one-device mode, dialogs
+- `tools/build-artifact.js`: bundles everything into `dist/hexhaven.html`

@@ -1,0 +1,1736 @@
+<title>Hexhaven</title>
+<style>
+:root {
+  --bg: #0f1d2b;
+  --panel: #182a3c;
+  --panel-2: #213750;
+  --line: #2e4a66;
+  --text: #eef3f8;
+  --muted: #9bb0c4;
+  --accent: #f2b544;
+  --accent-ink: #2a1c00;
+  --sea-1: #2f7fb8;
+  --sea-2: #1d5d8f;
+  --danger: #ff7b6b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: radial-gradient(ellipse at top, #18324b, var(--bg) 70%);
+  color: var(--text);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+[hidden] { display: none !important; }
+h1, h2, h3, h4 { margin: 0; }
+h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+h4 { font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.warn { color: var(--danger); }
+
+button {
+  font: inherit; color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; cursor: pointer;
+  transition: background .15s, transform .05s, border-color .15s;
+}
+button:hover:not(:disabled) { background: #2a4563; border-color: #4a6d90; }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+button.primary:hover:not(:disabled) { background: #ffc85e; }
+button.ghost { background: transparent; }
+button.wide { width: 100%; padding: 12px; font-size: 16px; margin: 6px 0; }
+button.sel, button.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+input, select {
+  font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 8px;
+}
+label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.row.end { justify-content: flex-end; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--pc); display: inline-block; flex: none; box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+
+/* ---------- Board SVG ---------- */
+.board svg, .setup-preview svg { width: 100%; height: 100%; display: block; }
+.water { stroke: rgba(255,255,255,.06); stroke-width: 1; }
+.tile-poly { stroke: #0e2233; stroke-width: 3; stroke-linejoin: round; }
+.tile-icon { font-size: 22px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.token { fill: #f7efd9; stroke: #6b5a3a; stroke-width: 1.5; }
+.token-num { font-size: 17px; font-weight: 800; text-anchor: middle; fill: #2b2b2b; pointer-events: none; }
+.token-num.hot { fill: #c62828; }
+.pip { fill: #2b2b2b; } .pip.hot { fill: #c62828; }
+.pier { stroke: #c9a46a; stroke-width: 4; stroke-linecap: round; }
+.harbor { fill: #f7efd9; stroke: #6b5a3a; stroke-width: 2; }
+.harbor-txt { font-size: 12px; font-weight: 800; text-anchor: middle; fill: #3a2d16; }
+.harbor-txt.small { font-size: 10px; }
+.harbor-ico { font-size: 13px; text-anchor: middle; }
+.road-bg { stroke: #111; stroke-width: 11; stroke-linecap: round; }
+.road { stroke-width: 7; stroke-linecap: round; }
+.bld { stroke: #111; stroke-width: 2; stroke-linejoin: round; }
+.storm-bg { fill: rgba(20,20,35,.75); }
+.storm-ico { font-size: 22px; text-anchor: middle; pointer-events: none; }
+.hint { cursor: pointer; }
+.hint .hit { stroke: transparent; fill: transparent; stroke-width: 18; }
+.hint-vertex { fill: #fff; stroke: var(--accent); stroke-width: 3; animation: pulse 1.1s ease-in-out infinite; }
+.hint-edge { stroke: #fff; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 2 6; animation: pulse 1.1s ease-in-out infinite; }
+.hint:hover .hint-vertex { fill: var(--accent); }
+.hint:hover .hint-edge { stroke: var(--accent); stroke-dasharray: none; }
+.hint-tile { cursor: pointer; }
+.hint-tile-outline { fill: rgba(255,255,255,.08); stroke: #fff; stroke-width: 3; stroke-dasharray: 8 6; animation: pulse 1.1s ease-in-out infinite; }
+.hint-tile:hover .hint-tile-outline { fill: rgba(242,181,68,.3); stroke: var(--accent); }
+@keyframes pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .hint-vertex, .hint-edge, .hint-tile-outline { animation: none; } }
+
+/* ---------- Setup ---------- */
+.setup { display: grid; grid-template-columns: 1fr 420px; min-height: 100vh; }
+.setup-preview { padding: 24px; display: flex; align-items: center; justify-content: center; min-height: 300px; }
+.setup-preview svg { max-height: calc(100vh - 48px); }
+.setup-form { background: var(--panel); border-left: 1px solid var(--line); padding: 28px 24px; overflow-y: auto; max-height: 100vh; }
+.setup-form h1 { font-size: 34px; letter-spacing: .02em; }
+.setup-form h3 { margin-top: 20px; }
+.tag { color: var(--muted); margin: 4px 0 16px; }
+.maps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.map { text-align: left; display: flex; flex-direction: column; gap: 2px; }
+.map small { color: var(--muted); font-size: 12px; }
+.names { display: grid; gap: 8px; margin-bottom: 14px; }
+.pname input { flex: 1; width: 100%; }
+.pname { display: flex; }
+
+/* ---------- Game ---------- */
+.game { display: grid; grid-template-columns: 1fr 360px; height: 100vh; }
+.board { padding: 12px; min-height: 0; display: flex; }
+.side { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; display: flex; flex-direction: column; }
+.side section { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.turn { border-top: 4px solid var(--pc); }
+.turn-name { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 800; }
+.turn-sub { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.instr { margin: 8px 0 0; }
+.dice-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; gap: 12px; }
+.dice { font-size: 38px; line-height: 1; display: flex; align-items: center; gap: 4px; }
+.dice-total { font-size: 18px; font-weight: 800; background: var(--bg); border-radius: 8px; padding: 4px 8px; margin-left: 8px; }
+.dice-row button { padding: 10px 18px; font-size: 16px; }
+.hand { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.card {
+  background: linear-gradient(160deg, var(--rc), color-mix(in srgb, var(--rc) 55%, #000));
+  border-radius: 10px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; align-items: center;
+  border: 1px solid rgba(255,255,255,.15);
+}
+.card span { font-size: 20px; }
+.card b { font-size: 20px; text-shadow: 0 1px 2px #000; }
+.card small { font-size: 10px; opacity: .9; text-shadow: 0 1px 2px #000; }
+.builds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.build { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; }
+.build span:first-child { font-weight: 700; }
+.build small { color: var(--muted); font-size: 11px; }
+.costs { font-size: 13px; }
+.cost { margin: 0 1px; white-space: nowrap; }
+.trades { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.players { display: grid; gap: 6px; }
+.pl { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--bg); border-left: 3px solid var(--pc); }
+.pl.cur { background: var(--panel-2); }
+.pl-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-stat { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.pl-vp { font-weight: 800; font-size: 18px; min-width: 42px; text-align: right; }
+.pl-vp small { font-size: 10px; color: var(--muted); margin-left: 2px; }
+.log-wrap { flex: 1; min-height: 140px; display: flex; flex-direction: column; }
+.log { font-size: 13px; color: #c8d6e4; overflow-y: auto; max-height: 220px; flex: 1; }
+.log div { padding: 1px 0; }
+.menu { display: flex; gap: 8px; }
+
+/* ---------- Modal ---------- */
+.modal { position: fixed; inset: 0; background: rgba(5,12,20,.65); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.modal-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.modal-card h2 { margin-bottom: 8px; }
+.steppers { display: grid; gap: 6px; }
+.stepper { display: grid; grid-template-columns: 34px 36px 1fr 36px; align-items: center; gap: 8px; background: var(--bg); border-radius: 8px; padding: 4px 8px; border-left: 4px solid var(--rc); }
+.stepper b { text-align: center; font-size: 18px; }
+.stepper button { padding: 4px 0; }
+.st-ico { font-size: 20px; }
+.pick { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.pick button { display: flex; flex-direction: column; align-items: center; font-size: 22px; padding: 6px 2px; }
+.pick small { font-size: 10px; color: var(--muted); }
+.choices { display: grid; gap: 8px; }
+.choices.inline { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+.choices button { display: flex; align-items: center; gap: 8px; text-align: left; }
+.win { font-size: 28px; }
+.ranks { padding-left: 20px; }
+.ranks li { margin: 6px 0; }
+.ranks .dot { margin-right: 6px; vertical-align: middle; }
+.help li { margin-bottom: 8px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .setup { grid-template-columns: 1fr; }
+  .setup-preview { height: 50vh; padding: 8px; }
+  .setup-form { border-left: none; border-top: 1px solid var(--line); max-height: none; padding: 20px 16px; }
+  .game { grid-template-columns: 1fr; height: auto; }
+  .board { height: 62vh; padding: 4px; position: sticky; top: 0; z-index: 2; background: var(--bg); }
+  .side { border-left: none; }
+}
+
+/* ---------- Online: home, lobby, status ---------- */
+.setup-form { display: flex; flex-direction: column; gap: 4px; }
+.setup-form > button.ghost:first-child { align-self: flex-start; }
+.eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 12px 0 0; }
+.code-big { font-size: 48px; letter-spacing: .18em; font-variant-numeric: tabular-nums; color: var(--accent); }
+.note { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; color: var(--text); margin: 6px 0; }
+.banner { border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
+.banner.err { background: color-mix(in srgb, var(--danger) 18%, var(--panel)); border: 1px solid var(--danger); }
+.row input { flex: 1; min-width: 0; }
+#code { text-transform: uppercase; letter-spacing: .2em; font-weight: 700; }
+.glist { display: grid; gap: 6px; margin-top: 6px; }
+.gitem { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; text-align: left; padding: 10px 12px; }
+.gcode { font-weight: 800; letter-spacing: .12em; color: var(--accent); font-variant-numeric: tabular-nums; }
+.gmeta { min-width: 0; }
+.gmeta small { color: var(--muted); }
+.gopen { color: var(--muted); font-weight: 600; }
+.you { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--accent-ink); background: var(--accent); border-radius: 999px; padding: 1px 7px; margin-left: 4px; vertical-align: middle; }
+.net-status { font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; color: #7fd89a; margin-left: auto; }
+.net-status::before { content: "● "; }
+.net-status.busy { color: var(--accent); }
+.net-status.err { color: var(--danger); }
+.online-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; padding-block: 8px !important; }
+.small-btn { padding: 4px 10px; font-size: 13px; }
+.offer-wait { margin-top: 10px; background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+h3 { display: flex; align-items: center; gap: 8px; }
+.setup-form h3 { margin-top: 18px; }
+body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+@media (max-width: 900px) { .code-big { font-size: 38px; } }
+
+</style>
+<main id="setup" class="setup"></main>
+  <main id="game" class="game" hidden>
+    <div id="board" class="board"></div>
+    <aside id="side" class="side"></aside>
+  </main>
+  <div id="modal" class="modal" hidden></div>
+<script>
+// Hexhaven — board generation: map shapes, resources, number tokens, harbors, vertex/edge graph.
+'use strict';
+
+const RES = ['timber', 'clay', 'fiber', 'grain', 'stone'];
+const RES_INFO = {
+  timber: { name: 'Timber', color: '#3d7a3a', icon: '🌲', land: 'Forest' },
+  clay:   { name: 'Clay',   color: '#c2683f', icon: '🧱', land: 'Clay Pit' },
+  fiber:  { name: 'Fiber',  color: '#9bc45a', icon: '🌿', land: 'Flax Meadow' },
+  grain:  { name: 'Grain',  color: '#e3bf4a', icon: '🌾', land: 'Fields' },
+  stone:  { name: 'Stone',  color: '#8a8f99', icon: '🪨', land: 'Quarry' },
+  waste:  { name: 'Wasteland', color: '#d9c49a', icon: '🏜️', land: 'Wasteland' },
+};
+
+const HEX_SIZE = 60;
+const SQRT3 = Math.sqrt(3);
+const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffle(arr, rng) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+const hkey = (q, r) => q + ',' + r;
+const hdist = (a, b) => (Math.abs(a.q - b.q) + Math.abs(a.r - b.r) + Math.abs(a.q + a.r - b.q - b.r)) / 2;
+const neighbors = (h) => DIRS.map(([dq, dr]) => ({ q: h.q + dq, r: h.r + dr }));
+
+function hexagon(radius, minRadius = 0) {
+  const out = [];
+  for (let q = -radius; q <= radius; q++) {
+    for (let r = -radius; r <= radius; r++) {
+      const h = { q, r };
+      const d = hdist(h, { q: 0, r: 0 });
+      if (d <= radius && d >= minRadius) out.push(h);
+    }
+  }
+  return out;
+}
+
+// Grow separate islands from centres; islands never touch (always at least one water hex between them).
+function growIslands(rng, centers, sizes) {
+  const owner = new Map();
+  const islands = centers.map((c, i) => {
+    owner.set(hkey(c.q, c.r), i);
+    return [c];
+  });
+  const touchesOther = (h, i) =>
+    neighbors(h).some((n) => owner.has(hkey(n.q, n.r)) && owner.get(hkey(n.q, n.r)) !== i);
+  let progress = true;
+  while (progress) {
+    progress = false;
+    islands.forEach((isl, i) => {
+      if (isl.length >= sizes[i]) return;
+      const frontier = [];
+      isl.forEach((h) => neighbors(h).forEach((n) => {
+        if (!owner.has(hkey(n.q, n.r)) && !touchesOther(n, i)) frontier.push(n);
+      }));
+      if (!frontier.length) return;
+      // Prefer cells with more same-island neighbours, so islands stay compact-ish.
+      const scored = frontier.map((n) => ({
+        n,
+        s: neighbors(n).filter((m) => owner.get(hkey(m.q, m.r)) === i).length + rng() * 2.5,
+      }));
+      scored.sort((a, b) => b.s - a.s);
+      const pick = scored[0].n;
+      owner.set(hkey(pick.q, pick.r), i);
+      isl.push(pick);
+      progress = true;
+    });
+  }
+  return islands.flat();
+}
+
+const MAPS = {
+  classic: {
+    name: 'Classic Isle', desc: '19 tiles · best for 3–4',
+    shape: () => hexagon(2),
+  },
+  grand: {
+    name: 'Grand Isle', desc: '37 tiles · best for 5–6',
+    shape: () => hexagon(3),
+  },
+  lagoon: {
+    name: 'Lagoon Ring', desc: '18 tiles around an inland sea',
+    shape: () => hexagon(2, 1),
+  },
+  twin: {
+    name: 'Twin Isles', desc: 'Two islands · 22 tiles',
+    shape: (rng) => growIslands(rng, [{ q: -3, r: 0 }, { q: 3, r: 0 }], [11, 11]),
+  },
+  archipelago: {
+    name: 'Archipelago', desc: 'Seven small islands · 28 tiles',
+    shape: (rng) => growIslands(rng, [{ q: 0, r: 0 }, ...DIRS.map(([q, r]) => ({ q: q * 4, r: r * 4 }))], [4, 4, 4, 4, 4, 4, 4]),
+  },
+  coast: {
+    name: 'Long Coast', desc: 'A 3×7 strip of land · 21 tiles',
+    shape: () => {
+      const out = [];
+      for (let row = 0; row < 3; row++) for (let col = 0; col < 7; col++) out.push({ q: col - Math.floor(row / 2) - 3, r: row - 1 });
+      return out;
+    },
+  },
+  wild: {
+    name: 'Wild Shores', desc: 'Random coastline · 24 tiles',
+    shape: (rng) => growIslands(rng, [{ q: 0, r: 0 }], [24]),
+  },
+};
+
+const NUMBER_POOL = [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12];
+const pips = (n) => (n ? 6 - Math.abs(7 - n) : 0);
+
+function hexCenter(q, r) {
+  return { x: HEX_SIZE * SQRT3 * (q + r / 2), y: HEX_SIZE * 1.5 * r };
+}
+function hexCorner(cx, cy, i, size = HEX_SIZE) {
+  const a = (Math.PI / 180) * (60 * i - 30);
+  return { x: cx + size * Math.cos(a), y: cy + size * Math.sin(a) };
+}
+
+function assignTerrain(rng, n) {
+  const deserts = Math.max(1, Math.round(n / 19));
+  const weights = { timber: 4, fiber: 4, grain: 4, clay: 3, stone: 3 };
+  const totalW = 18;
+  const remaining = n - deserts;
+  const counts = {};
+  let assigned = 0;
+  RES.forEach((r) => { counts[r] = Math.floor((remaining * weights[r]) / totalW); assigned += counts[r]; });
+  // Distribute leftovers to the higher-weight resources first.
+  const order = ['timber', 'fiber', 'grain', 'clay', 'stone'];
+  for (let i = 0; assigned < remaining; i++, assigned++) counts[order[i % 5]]++;
+  const list = [];
+  for (let i = 0; i < deserts; i++) list.push('waste');
+  RES.forEach((r) => { for (let i = 0; i < counts[r]; i++) list.push(r); });
+  return shuffle(list, rng);
+}
+
+function assignNumbers(rng, tiles) {
+  const prod = tiles.filter((t) => t.type !== 'waste');
+  const pool = [];
+  while (pool.length < prod.length) pool.push(...NUMBER_POOL);
+  pool.length = prod.length;
+  const byKey = new Map(tiles.map((t) => [hkey(t.q, t.r), t]));
+  let best = null;
+  let bestBad = Infinity;
+  for (let attempt = 0; attempt < 400; attempt++) {
+    shuffle(pool, rng);
+    prod.forEach((t, i) => { t.number = pool[i]; });
+    let bad = 0;
+    prod.forEach((t) => {
+      if (t.number !== 6 && t.number !== 8) return;
+      neighbors(t).forEach((n) => {
+        const o = byKey.get(hkey(n.q, n.r));
+        if (o && (o.number === 6 || o.number === 8)) bad++;
+      });
+    });
+    if (bad < bestBad) { bestBad = bad; best = pool.slice(); }
+    if (bad === 0) break;
+  }
+  prod.forEach((t, i) => { t.number = best[i]; });
+}
+
+function generateBoard(mapKey, seed) {
+  const rng = mulberry32(seed);
+  const def = MAPS[mapKey] || MAPS.classic;
+  const shape = def.shape(rng);
+  const types = assignTerrain(rng, shape.length);
+  const tiles = shape.map((h, i) => {
+    const c = hexCenter(h.q, h.r);
+    return { id: i, q: h.q, r: h.r, x: c.x, y: c.y, type: types[i], number: 0, v: [], e: [] };
+  });
+  assignNumbers(rng, tiles);
+
+  // Vertex / edge graph.
+  const vertices = [];
+  const edges = [];
+  const vmap = new Map();
+  const emap = new Map();
+  tiles.forEach((t) => {
+    for (let i = 0; i < 6; i++) {
+      const p = hexCorner(t.x, t.y, i);
+      const k = Math.round(p.x * 10) + ',' + Math.round(p.y * 10);
+      let v = vmap.get(k);
+      if (v === undefined) {
+        v = vertices.length;
+        vmap.set(k, v);
+        vertices.push({ id: v, x: p.x, y: p.y, tiles: [], adj: [], edges: [], harbor: null, building: null });
+      }
+      vertices[v].tiles.push(t.id);
+      t.v.push(v);
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = t.v[i];
+      const b = t.v[(i + 1) % 6];
+      const k = Math.min(a, b) + '-' + Math.max(a, b);
+      let e = emap.get(k);
+      if (e === undefined) {
+        e = edges.length;
+        emap.set(k, e);
+        edges.push({ id: e, a, b, tiles: [], road: null });
+        vertices[a].adj.push(b); vertices[a].edges.push(e);
+        vertices[b].adj.push(a); vertices[b].edges.push(e);
+      }
+      edges[e].tiles.push(t.id);
+      t.e.push(e);
+    }
+  });
+
+  // Water ring for drawing.
+  const landKeys = new Set(tiles.map((t) => hkey(t.q, t.r)));
+  const waterKeys = new Set();
+  const water = [];
+  // Two rings of sea around every coast, so channels between islands are filled in.
+  let ring = tiles.map((t) => ({ q: t.q, r: t.r }));
+  for (let depth = 0; depth < 2; depth++) {
+    const next = [];
+    ring.forEach((h) => neighbors(h).forEach((n) => {
+      const k = hkey(n.q, n.r);
+      if (!landKeys.has(k) && !waterKeys.has(k)) { waterKeys.add(k); water.push({ q: n.q, r: n.r, ...hexCenter(n.q, n.r) }); next.push(n); }
+    }));
+    ring = next;
+  }
+
+  // Harbors on coastal edges, spread around the coastline.
+  const cx = tiles.reduce((s, t) => s + t.x, 0) / tiles.length;
+  const cy = tiles.reduce((s, t) => s + t.y, 0) / tiles.length;
+  const coastal = edges.filter((e) => e.tiles.length === 1).map((e) => {
+    const A = vertices[e.a]; const B = vertices[e.b];
+    const mx = (A.x + B.x) / 2; const my = (A.y + B.y) / 2;
+    return { e, mx, my, ang: Math.atan2(my - cy, mx - cx) };
+  });
+  coastal.sort((a, b) => a.ang - b.ang);
+  const H = Math.max(3, Math.min(Math.round(coastal.length * 0.3), Math.round(tiles.length * 0.5)));
+  const step = coastal.length / H;
+  const offset = rng() * step;
+  const harbors = [];
+  const used = new Set();
+  for (let i = 0; i < H; i++) {
+    const c = coastal[Math.floor(offset + i * step) % coastal.length];
+    if (used.has(c.e.a) || used.has(c.e.b)) continue;
+    // Keep a vertex gap between harbors.
+    if (vertices[c.e.a].adj.some((x) => used.has(x)) || vertices[c.e.b].adj.some((x) => used.has(x))) continue;
+    used.add(c.e.a); used.add(c.e.b);
+    const t = tiles[c.e.tiles[0]];
+    harbors.push({ edge: c.e.id, tile: t.id, type: null });
+  }
+  const htypes = harbors.map((_, i) => (i % 9 < 5 ? RES[i % 9] : 'any'));
+  shuffle(htypes, rng);
+  harbors.forEach((h, i) => {
+    h.type = htypes[i];
+    const e = edges[h.edge];
+    vertices[e.a].harbor = h.type;
+    vertices[e.b].harbor = h.type;
+  });
+
+  const storm = tiles.findIndex((t) => t.type === 'waste');
+  return { mapKey, seed, tiles, vertices, edges, water, harbors, storm };
+}
+
+// Hexhaven — game rules. All state is plain JSON so it can be saved and restored.
+'use strict';
+
+const COSTS = {
+  road:    { timber: 1, clay: 1 },
+  village: { timber: 1, clay: 1, fiber: 1, grain: 1 },
+  town:    { grain: 2, stone: 3 },
+};
+const LIMITS = { road: 15, village: 5, town: 4 };
+const PLAYER_COLORS = ['#e04848', '#3a78e0', '#f0a020', '#9b59d0', '#f4f1ea', '#22a8a8'];
+
+const emptyHand = () => ({ timber: 0, clay: 0, fiber: 0, grain: 0, stone: 0 });
+const handSize = (h) => RES.reduce((s, r) => s + h[r], 0);
+const canAfford = (h, cost) => Object.entries(cost).every(([r, n]) => h[r] >= n);
+const pay = (h, cost) => Object.entries(cost).forEach(([r, n]) => { h[r] -= n; });
+
+function newGame({ players, mapKey, seed, target }) {
+  const board = generateBoard(mapKey, seed);
+  const n = players.length;
+  const order = [];
+  for (let i = 0; i < n; i++) order.push(i);
+  for (let i = n - 1; i >= 0; i--) order.push(i);
+  return {
+    version: 1,
+    board,
+    target,
+    players: players.map((p, i) => ({
+      name: p.name, color: p.color || PLAYER_COLORS[i],
+      hand: emptyHand(), roads: 0, villages: 0, towns: 0, road: 0,
+    })),
+    cur: 0,
+    phase: 'setup',            // setup | main | over
+    setup: { order, step: 0, need: 'village', lastVertex: null },
+    rolled: false,
+    dice: null,
+    pending: null,             // {type:'discard', queue:[...]} | {type:'storm'} | {type:'steal', victims:[...]}
+    offer: null,               // {id, from, to, give, get} — a trade waiting for the other player
+    longestHolder: -1,
+    winner: -1,
+    log: [],
+    turn: 1,
+  };
+}
+
+function log(s, msg) {
+  s.log.push(msg);
+  if (s.log.length > 80) s.log.shift();
+}
+
+function vp(s, p) {
+  const P = s.players[p];
+  return P.villages + P.towns * 2 + (s.longestHolder === p ? 2 : 0);
+}
+
+// ---------- placement validity ----------
+function vertexFree(s, v) {
+  const V = s.board.vertices[v];
+  return !V.building && V.adj.every((a) => !s.board.vertices[a].building);
+}
+
+function canPlaceVillage(s, p, v) {
+  if (!vertexFree(s, v)) return false;
+  if (s.phase === 'setup') return true;
+  return s.board.vertices[v].edges.some((e) => s.board.edges[e].road === p);
+}
+
+function canPlaceRoad(s, p, e) {
+  const E = s.board.edges[e];
+  if (E.road !== null) return false;
+  if (s.phase === 'setup') return E.a === s.setup.lastVertex || E.b === s.setup.lastVertex;
+  return [E.a, E.b].some((x) => {
+    const V = s.board.vertices[x];
+    if (V.building) return V.building.p === p;
+    return V.edges.some((oe) => oe !== e && s.board.edges[oe].road === p);
+  });
+}
+
+function canPlaceTown(s, p, v) {
+  const b = s.board.vertices[v].building;
+  return !!b && b.p === p && b.t === 'village';
+}
+
+function validSpots(s, p, kind) {
+  if (kind === 'village') return s.board.vertices.filter((V) => canPlaceVillage(s, p, V.id)).map((V) => V.id);
+  if (kind === 'town') return s.board.vertices.filter((V) => canPlaceTown(s, p, V.id)).map((V) => V.id);
+  if (kind === 'road') return s.board.edges.filter((E) => canPlaceRoad(s, p, E.id)).map((E) => E.id);
+  return [];
+}
+
+// ---------- longest road ----------
+function longestRoadOf(s, p) {
+  const { vertices, edges } = s.board;
+  let best = 0;
+  const blocked = (v) => vertices[v].building && vertices[v].building.p !== p;
+  const used = new Set();
+  function dfs(v, len) {
+    if (len > best) best = len;
+    if (len > 0 && blocked(v)) return;
+    for (const e of vertices[v].edges) {
+      if (edges[e].road !== p || used.has(e)) continue;
+      used.add(e);
+      dfs(edges[e].a === v ? edges[e].b : edges[e].a, len + 1);
+      used.delete(e);
+    }
+  }
+  const starts = new Set();
+  edges.forEach((E) => { if (E.road === p) { starts.add(E.a); starts.add(E.b); } });
+  starts.forEach((v) => dfs(v, 0));
+  return best;
+}
+
+function updateLongestRoad(s) {
+  s.players.forEach((P, i) => { P.road = longestRoadOf(s, i); });
+  const lens = s.players.map((P) => P.road);
+  const max = Math.max(...lens);
+  const h = s.longestHolder;
+  const prev = h;
+  if (h >= 0 && lens[h] >= 5 && lens[h] === max) return; // holder keeps it on ties
+  const leaders = lens.map((l, i) => (l === max ? i : -1)).filter((i) => i >= 0);
+  s.longestHolder = max >= 5 && leaders.length === 1 ? leaders[0] : -1;
+  if (s.longestHolder !== prev) {
+    if (s.longestHolder >= 0) log(s, `🛤️ ${s.players[s.longestHolder].name} takes Longest Road (${max}).`);
+    else log(s, '🛤️ Longest Road is now unclaimed.');
+  }
+}
+
+// ---------- actions ----------
+function checkWin(s) {
+  if (s.phase !== 'main') return;
+  const p = s.cur;
+  if (vp(s, p) >= s.target) {
+    s.phase = 'over';
+    s.winner = p;
+    log(s, `🏆 ${s.players[p].name} wins with ${vp(s, p)} points!`);
+  }
+}
+
+function placeVillage(s, v) {
+  const p = s.cur;
+  const P = s.players[p];
+  if (!canPlaceVillage(s, p, v) || P.villages >= LIMITS.village) return false;
+  if (s.phase === 'main') {
+    if (!canAfford(P.hand, COSTS.village)) return false;
+    pay(P.hand, COSTS.village);
+  }
+  s.board.vertices[v].building = { p, t: 'village' };
+  P.villages++;
+  log(s, `🏠 ${P.name} founds a village.`);
+  if (s.phase === 'setup') {
+    // Second round of setup: collect from neighbouring tiles.
+    if (s.setup.step >= s.players.length) {
+      const got = [];
+      s.board.vertices[v].tiles.forEach((ti) => {
+        const T = s.board.tiles[ti];
+        if (RES.includes(T.type)) { P.hand[T.type]++; got.push(RES_INFO[T.type].icon); }
+      });
+      if (got.length) log(s, `   ${P.name} collects ${got.join(' ')}`);
+    }
+    s.setup.need = 'road';
+    s.setup.lastVertex = v;
+  } else {
+    updateLongestRoad(s);
+    checkWin(s);
+  }
+  return true;
+}
+
+function placeRoad(s, e) {
+  const p = s.cur;
+  const P = s.players[p];
+  if (!canPlaceRoad(s, p, e) || P.roads >= LIMITS.road) return false;
+  if (s.phase === 'main') {
+    if (!canAfford(P.hand, COSTS.road)) return false;
+    pay(P.hand, COSTS.road);
+  }
+  s.board.edges[e].road = p;
+  P.roads++;
+  updateLongestRoad(s);
+  if (s.phase === 'setup') {
+    s.setup.step++;
+    s.setup.need = 'village';
+    s.setup.lastVertex = null;
+    if (s.setup.step >= s.setup.order.length) {
+      s.phase = 'main';
+      s.cur = 0;
+      log(s, '⛵ Setup complete — let the trading begin!');
+      log(s, `— Turn ${s.turn}: ${s.players[0].name} —`);
+    } else {
+      s.cur = s.setup.order[s.setup.step];
+    }
+  } else {
+    log(s, `🛤️ ${P.name} builds a road.`);
+    checkWin(s);
+  }
+  return true;
+}
+
+function placeTown(s, v) {
+  const p = s.cur;
+  const P = s.players[p];
+  if (!canPlaceTown(s, p, v) || P.towns >= LIMITS.town || !canAfford(P.hand, COSTS.town)) return false;
+  pay(P.hand, COSTS.town);
+  s.board.vertices[v].building.t = 'town';
+  P.villages--;
+  P.towns++;
+  log(s, `🏰 ${P.name} upgrades to a town.`);
+  checkWin(s);
+  return true;
+}
+
+function rollDice(s, rng = Math.random) {
+  if (s.phase !== 'main' || s.rolled || s.pending) return false;
+  const a = 1 + Math.floor(rng() * 6);
+  const b = 1 + Math.floor(rng() * 6);
+  s.dice = [a, b];
+  s.rolled = true;
+  const total = a + b;
+  log(s, `🎲 ${s.players[s.cur].name} rolls ${total}.`);
+  if (total === 7) {
+    const queue = s.players.map((P, i) => (handSize(P.hand) > 7 ? i : -1)).filter((i) => i >= 0);
+    log(s, '⛈️ A storm gathers!');
+    s.pending = queue.length ? { type: 'discard', queue } : { type: 'storm' };
+    return true;
+  }
+  const gains = s.players.map(() => emptyHand());
+  s.board.tiles.forEach((T) => {
+    if (T.number !== total || T.id === s.board.storm) return;
+    T.v.forEach((v) => {
+      const b = s.board.vertices[v].building;
+      if (b) gains[b.p][T.type] += b.t === 'town' ? 2 : 1;
+    });
+  });
+  gains.forEach((g, i) => {
+    const parts = RES.filter((r) => g[r]).map((r) => `${g[r]}${RES_INFO[r].icon}`);
+    RES.forEach((r) => { s.players[i].hand[r] += g[r]; });
+    if (parts.length) log(s, `   ${s.players[i].name} gets ${parts.join(' ')}`);
+  });
+  return true;
+}
+
+function discardNeeded(s, p) { return Math.floor(handSize(s.players[p].hand) / 2); }
+
+function discard(s, p, cards) {
+  if (!s.pending || s.pending.type !== 'discard' || !s.pending.queue.includes(p)) return false;
+  const P = s.players[p];
+  const n = RES.reduce((t, r) => t + (cards[r] || 0), 0);
+  if (n !== discardNeeded(s, p) || RES.some((r) => (cards[r] || 0) > P.hand[r] || (cards[r] || 0) < 0)) return false;
+  RES.forEach((r) => { P.hand[r] -= cards[r] || 0; });
+  log(s, `   ${P.name} discards ${n} cards.`);
+  s.pending.queue = s.pending.queue.filter((q) => q !== p);
+  if (!s.pending.queue.length) s.pending = { type: 'storm' };
+  return true;
+}
+
+function stealVictims(s, tile) {
+  const set = new Set();
+  s.board.tiles[tile].v.forEach((v) => {
+    const b = s.board.vertices[v].building;
+    if (b && b.p !== s.cur && handSize(s.players[b.p].hand) > 0) set.add(b.p);
+  });
+  return [...set];
+}
+
+function moveStorm(s, tile, rng = Math.random) {
+  if (!s.pending || s.pending.type !== 'storm' || tile === s.board.storm) return false;
+  s.board.storm = tile;
+  log(s, `⛈️ ${s.players[s.cur].name} moves the storm.`);
+  const victims = stealVictims(s, tile);
+  if (victims.length === 0) s.pending = null;
+  else if (victims.length === 1) { s.pending = null; steal(s, victims[0], rng); }
+  else s.pending = { type: 'steal', victims };
+  return true;
+}
+
+function steal(s, victim, rng = Math.random) {
+  const V = s.players[victim];
+  const pool = [];
+  RES.forEach((r) => { for (let i = 0; i < V.hand[r]; i++) pool.push(r); });
+  if (s.pending && s.pending.type === 'steal') s.pending = null;
+  if (!pool.length) return false;
+  const r = pool[Math.floor(rng() * pool.length)];
+  V.hand[r]--;
+  s.players[s.cur].hand[r]++;
+  log(s, `   ${s.players[s.cur].name} steals a card from ${V.name}.`);
+  return true;
+}
+
+function tradeRate(s, p, res) {
+  let rate = 4;
+  s.board.vertices.forEach((V) => {
+    if (!V.harbor || !V.building || V.building.p !== p) return;
+    if (V.harbor === res) rate = Math.min(rate, 2);
+    else if (V.harbor === 'any') rate = Math.min(rate, 3);
+  });
+  return rate;
+}
+
+function canAct(s) { return s.phase === 'main' && s.rolled && !s.pending; }
+
+function bankTrade(s, give, get) {
+  const P = s.players[s.cur];
+  const rate = tradeRate(s, s.cur, give);
+  if (!canAct(s) || give === get || P.hand[give] < rate) return false;
+  P.hand[give] -= rate;
+  P.hand[get]++;
+  log(s, `🏦 ${P.name} trades ${rate}${RES_INFO[give].icon} → 1${RES_INFO[get].icon}`);
+  return true;
+}
+
+function playerTrade(s, other, give, get) {
+  const A = s.players[s.cur];
+  const B = s.players[other];
+  if (!canAct(s) || other === s.cur) return false;
+  if (!canAfford(A.hand, give) || !canAfford(B.hand, get)) return false;
+  if (handSize(give) + handSize(get) === 0) return false;
+  RES.forEach((r) => {
+    A.hand[r] += (get[r] || 0) - (give[r] || 0);
+    B.hand[r] += (give[r] || 0) - (get[r] || 0);
+  });
+  const fmt = (h) => RES.filter((r) => h[r]).map((r) => `${h[r]}${RES_INFO[r].icon}`).join(' ') || 'nothing';
+  log(s, `🤝 ${A.name} gives ${fmt(give)} to ${B.name} for ${fmt(get)}`);
+  return true;
+}
+
+function makeOffer(s, to, give, get, rng = Math.random) {
+  const A = s.players[s.cur];
+  if (!canAct(s) || to === s.cur || !s.players[to] || !canAfford(A.hand, give)) return false;
+  if (handSize(give) + handSize(get) === 0) return false;
+  s.offer = { id: Math.floor(rng() * 1e9), from: s.cur, to, give: { ...emptyHand(), ...give }, get: { ...emptyHand(), ...get } };
+  log(s, `📨 ${A.name} offers a trade to ${s.players[to].name}.`);
+  return true;
+}
+
+function cancelOffer(s) {
+  if (!s.offer) return false;
+  s.offer = null;
+  return true;
+}
+
+function respondOffer(s, p, accept) {
+  const o = s.offer;
+  if (!o || o.to !== p || o.from !== s.cur) return false;
+  s.offer = null;
+  if (!accept) { log(s, `   ${s.players[p].name} declines.`); return true; }
+  if (!playerTrade(s, p, o.give, o.get)) log(s, '   The trade fell through: someone no longer has the cards.');
+  return true;
+}
+
+function endTurn(s) {
+  if (!canAct(s)) return false;
+  s.offer = null;
+  s.cur = (s.cur + 1) % s.players.length;
+  s.rolled = false;
+  s.dice = null;
+  if (s.cur === 0) s.turn++;
+  log(s, `— Turn ${s.turn}: ${s.players[s.cur].name} —`);
+  return true;
+}
+
+// Hexhaven — rendering, online lobbies (claude.ai artifact db) and one-device play.
+'use strict';
+
+const SAVE_KEY = 'hexhaven-local-v2';
+const TAB_ID = Math.random().toString(36).slice(2, 8);
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+let S = null;        // current game state (unpacked), or null
+let local = false;   // true = one-device game, false = online game
+const ui = { view: 'home', mode: null, modal: null, winSeen: false, nick: '', joinCode: '' };
+const net = {
+  db: null, user: null, uid: null, canWrite: null, checked: false, reason: '',
+  games: [], gamesState: 'loading', gameId: null, game: null, unsubGame: null, busy: false, error: '',
+};
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+// ======================= STATE PACKING =======================
+// The static board is regenerated from (mapKey, seed); only pieces and the storm are stored.
+function pack(s) {
+  const b = s.board;
+  const buildings = {};
+  const roads = {};
+  b.vertices.forEach((v) => { if (v.building) buildings[v.id] = v.building; });
+  b.edges.forEach((e) => { if (e.road !== null) roads[e.id] = e.road; });
+  const { board, ...rest } = s;
+  return clone({ ...rest, board: { mapKey: b.mapKey, seed: b.seed, storm: b.storm, buildings, roads } });
+}
+function unpack(p) {
+  const s = clone(p);
+  const b = generateBoard(s.board.mapKey, s.board.seed);
+  b.storm = s.board.storm;
+  Object.entries(s.board.buildings || {}).forEach(([v, bl]) => { b.vertices[v].building = bl; });
+  Object.entries(s.board.roads || {}).forEach(([e, p2]) => { b.edges[e].road = p2; });
+  s.board = b;
+  if (s.offer === undefined) s.offer = null;
+  return s;
+}
+
+// ======================= LOCAL STORAGE =======================
+function storeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function storeSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* unavailable */ } }
+function saveLocal() { if (local && S) storeSet(SAVE_KEY, JSON.stringify(pack(S))); }
+function loadLocal() {
+  try { const p = JSON.parse(storeGet(SAVE_KEY)); return p && p.phase !== 'over' ? p : null; } catch (e) { return null; }
+}
+
+// ======================= WHO CONTROLS WHAT =======================
+function mySeat() {
+  if (local || !net.game) return -1;
+  return (net.game.seats || []).findIndex((s) => s.uid === net.uid);
+}
+const controls = (p) => local || (p >= 0 && mySeat() === p);
+const handOwner = () => (local ? S.cur : mySeat());
+
+// Every action runs as fn(state, rng). Random numbers are drawn once so the
+// optimistic local run and the saved run agree.
+async function act(fn) {
+  if (!S) return;
+  const vals = Array.from({ length: 8 }, Math.random);
+  const mkRng = () => { let i = 0; return () => vals[i++ % vals.length]; };
+  if (local) { if (fn(S, mkRng())) saveLocal(); render(); return; }
+  const trial = unpack(pack(S));
+  if (!fn(trial, mkRng())) { render(); return; }
+  S = trial;
+  render();
+  await mutate((g) => {
+    if (!g.state) return false;
+    const st = unpack(g.state);
+    if (!fn(st, mkRng())) return false;
+    g.state = pack(st);
+    g.status = st.phase === 'over' ? 'over' : 'playing';
+    return true;
+  });
+}
+
+// Read-modify-write of the current online game doc under a short lease.
+async function mutate(fn) {
+  const ref = net.db.doc('games/' + net.gameId);
+  net.busy = true; net.error = '';
+  renderStatus();
+  try {
+    let got = false;
+    for (let i = 0; i < 30 && !got; i++) {
+      const r = await ref.acquire({ holder: net.uid + '.' + TAB_ID, ttlMs: 1000 });
+      got = r.acquired;
+      if (!got) await sleep(150 + Math.random() * 250);
+    }
+    if (!got) throw { message: 'Another player is saving a move. Try again in a moment.' };
+    const snap = await ref.get();
+    if (!snap.exists) throw { message: 'This game no longer exists.' };
+    const g = clone(snap.data());
+    if (fn(g)) {
+      g.rev = (g.rev || 0) + 1;
+      g.updatedAt = Date.now();
+      await ref.set(g);
+    }
+    applyGame(g);
+  } catch (e) {
+    net.error = friendlyError(e);
+    if (net.game) applyGame(net.game);
+  } finally {
+    net.busy = false;
+    render();
+  }
+}
+
+function friendlyError(e) {
+  const code = e && e.code;
+  if (code === 'invalid_argument') return 'Your access to this page is view-only, so you can watch but not play. Ask the owner to invite you as an Editor.';
+  if (code === 'quota_exceeded') return 'Storage is full. Delete some finished games and try again.';
+  if (code === 'revoked') return 'Your access to this page changed. Reload to continue.';
+  if (code === 'resource_exhausted') return 'Too many moves at once. Wait a moment and try again.';
+  return (e && e.message) || 'Something went wrong. Try again.';
+}
+
+function applyGame(g) {
+  net.game = g;
+  if (g.status === 'lobby' || !g.state) {
+    S = null;
+    if (ui.view !== 'lobby') { ui.view = 'lobby'; ui.mode = null; }
+  } else {
+    S = unpack(g.state);
+    if (ui.view !== 'game') { ui.view = 'game'; ui.mode = null; ui.winSeen = false; }
+  }
+}
+
+// ======================= ONLINE: GAMES LIST & LOBBY =======================
+async function initNet() {
+  if (!(window.claude && typeof window.claude.use === 'function')) {
+    net.checked = true; net.reason = 'plain'; render(); return;
+  }
+  const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+  net.db = db; net.user = user;
+  if (user) {
+    const me = await user.me();
+    net.uid = me.id;
+    if (!ui.nick && me.name) ui.nick = me.name.split(' ')[0].slice(0, 16);
+    net.canWrite = await user.can('data.write');
+  }
+  net.checked = true;
+  if (!db || !net.uid) { net.reason = 'signin'; net.db = null; render(); return; }
+  const timer = setTimeout(() => { if (net.gamesState === 'loading') { net.gamesState = 'slow'; render(); } }, 10000);
+  db.collection('games').orderBy('updatedAt', 'desc').limit(40).onSnapshot((snap) => {
+    if (!snap.metadata.fromCache) clearTimeout(timer);
+    net.games = snap.docs.map((d) => d.data());
+    net.gamesState = 'ok';
+    if (ui.view === 'home') render();
+  }, (err) => { clearTimeout(timer); net.gamesState = 'error'; net.error = friendlyError(err); render(); });
+  const m = /^#g-([A-Z0-9]{5})$/.exec(location.hash || '');
+  if (m) openGame(m[1]); else render();
+}
+
+function openGame(id) {
+  if (!net.db) return;
+  if (net.unsubGame) net.unsubGame();
+  local = false; S = null;
+  net.gameId = id; net.game = null; net.error = '';
+  ui.view = 'loading'; ui.mode = null; ui.winSeen = false; closeModal();
+  try { location.hash = 'g-' + id; } catch (e) { /* ignore */ }
+  render();
+  const timer = setTimeout(() => { if (!net.game && ui.view === 'loading') { net.error = 'Can’t reach this game yet. Check your connection.'; render(); } }, 10000);
+  net.unsubGame = net.db.doc('games/' + id).onSnapshot((snap) => {
+    if (net.gameId !== id) return;
+    if (!snap.exists) {
+      if (!snap.metadata.fromCache) { clearTimeout(timer); goHome(net.game ? 'That game was deleted.' : `No game with code ${id}.`); }
+      return;
+    }
+    clearTimeout(timer);
+    const g = clone(snap.data());
+    if (net.game && (g.rev || 0) < (net.game.rev || 0)) return;
+    if (net.busy && net.game && g.rev === net.game.rev) return;
+    applyGame(g);
+    render();
+  }, (err) => { clearTimeout(timer); net.error = friendlyError(err); render(); });
+}
+
+function goHome(msg = '') {
+  if (net.unsubGame) { net.unsubGame(); net.unsubGame = null; }
+  net.gameId = null; net.game = null; S = null; local = false;
+  net.error = msg;
+  ui.view = 'home'; ui.mode = null; closeModal();
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
+  render();
+}
+
+const nickname = () => (ui.nick || '').trim().slice(0, 16) || 'Player';
+
+async function createGame() {
+  const code = Array.from({ length: 5 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
+  const now = Date.now();
+  try {
+    await net.db.doc('games/' + code).set({
+      code, host: net.uid, status: 'lobby', rev: 1, createdAt: now, updatedAt: now,
+      config: { mapKey: 'classic', seed: Math.floor(Math.random() * 1e6), target: 10 },
+      seats: [{ uid: net.uid, name: nickname() }], state: null,
+    });
+    openGame(code);
+  } catch (e) { net.error = friendlyError(e); render(); }
+}
+
+const isHost = () => net.game && net.game.host === net.uid;
+const lobbyMutate = (fn) => mutate((g) => g.status === 'lobby' && fn(g));
+
+function joinLobby() {
+  lobbyMutate((g) => {
+    if (g.seats.some((s) => s.uid === net.uid) || g.seats.length >= 6) return false;
+    g.seats.push({ uid: net.uid, name: nickname() });
+    return true;
+  });
+}
+function leaveLobby() {
+  lobbyMutate((g) => { const n = g.seats.length; g.seats = g.seats.filter((s) => s.uid !== net.uid); return g.seats.length !== n; });
+}
+function setConfig(patch) {
+  if (!isHost()) return;
+  lobbyMutate((g) => { if (g.host !== net.uid) return false; Object.assign(g.config, patch); return true; });
+}
+function startOnline() {
+  lobbyMutate((g) => {
+    if (g.host !== net.uid || g.seats.length < 2) return false;
+    g.seats = shuffle(g.seats.slice(), Math.random);
+    const players = g.seats.map((s, i) => ({ name: s.name, color: PLAYER_COLORS[i] }));
+    const st = newGame({ players, mapKey: g.config.mapKey, seed: g.config.seed, target: g.config.target });
+    log(st, `🎲 Seating order: ${players.map((p) => p.name).join(', ')}.`);
+    g.state = pack(st);
+    g.status = 'playing';
+    return true;
+  });
+}
+async function deleteGame() {
+  try { await net.db.doc('games/' + net.gameId).delete(); goHome(); } catch (e) { net.error = friendlyError(e); render(); }
+}
+
+// ======================= BOARD SVG =======================
+function hexPoints(x, y, size) {
+  const pts = [];
+  for (let i = 0; i < 6; i++) { const c = hexCorner(x, y, i, size); pts.push(c.x.toFixed(1) + ',' + c.y.toFixed(1)); }
+  return pts.join(' ');
+}
+
+function boardSVG(board, opt = {}) {
+  const all = board.tiles;
+  const pad = HEX_SIZE * 1.9;
+  const minX = Math.min(...all.map((t) => t.x)) - pad;
+  const maxX = Math.max(...all.map((t) => t.x)) + pad;
+  const minY = Math.min(...all.map((t) => t.y)) - pad;
+  const maxY = Math.max(...all.map((t) => t.y)) + pad;
+  const gid = 'sea' + Math.random().toString(36).slice(2, 7);
+  const out = [];
+  out.push(`<svg viewBox="${minX} ${minY} ${maxX - minX} ${maxY - minY}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Game board">`);
+  out.push(`<defs><radialGradient id="${gid}" cx="50%" cy="50%" r="70%"><stop offset="0%" style="stop-color:var(--sea-1)"/><stop offset="100%" style="stop-color:var(--sea-2)"/></radialGradient></defs>`);
+
+  board.water.forEach((w) => out.push(`<polygon class="water" fill="url(#${gid})" points="${hexPoints(w.x, w.y, HEX_SIZE)}"/>`));
+
+  const hintTiles = new Set(opt.hintTiles || []);
+  board.tiles.forEach((t) => {
+    const info = RES_INFO[t.type];
+    const hint = hintTiles.has(t.id);
+    out.push(`<g class="tile${hint ? ' hint-tile' : ''}" ${hint ? `data-t="${t.id}"` : ''}>`);
+    out.push(`<polygon points="${hexPoints(t.x, t.y, HEX_SIZE - 1.5)}" fill="${info.color}" class="tile-poly"/>`);
+    out.push(`<polygon points="${hexPoints(t.x, t.y, HEX_SIZE * 0.8)}" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2"/>`);
+    out.push(`<text x="${t.x}" y="${t.y - 24}" class="tile-icon">${info.icon}</text>`);
+    if (t.number) {
+      const hot = t.number === 6 || t.number === 8;
+      out.push(`<circle cx="${t.x}" cy="${t.y + 8}" r="17" class="token"/>`);
+      out.push(`<text x="${t.x}" y="${t.y + 13}" class="token-num${hot ? ' hot' : ''}">${t.number}</text>`);
+      const n = pips(t.number);
+      for (let i = 0; i < n; i++) {
+        out.push(`<circle cx="${t.x + (i - (n - 1) / 2) * 4.5}" cy="${t.y + 19.5}" r="1.5" class="pip${hot ? ' hot' : ''}"/>`);
+      }
+    }
+    if (hint) out.push(`<polygon points="${hexPoints(t.x, t.y, HEX_SIZE - 4)}" class="hint-tile-outline"/>`);
+    out.push('</g>');
+  });
+
+  board.harbors.forEach((h) => {
+    const e = board.edges[h.edge];
+    const A = board.vertices[e.a]; const B = board.vertices[e.b];
+    const t = board.tiles[h.tile];
+    const mx = (A.x + B.x) / 2; const my = (A.y + B.y) / 2;
+    const dx = mx - t.x; const dy = my - t.y; const d = Math.hypot(dx, dy);
+    const hx = mx + (dx / d) * 30; const hy = my + (dy / d) * 30;
+    out.push(`<line x1="${A.x}" y1="${A.y}" x2="${hx}" y2="${hy}" class="pier"/><line x1="${B.x}" y1="${B.y}" x2="${hx}" y2="${hy}" class="pier"/>`);
+    out.push(`<circle cx="${hx}" cy="${hy}" r="16" class="harbor"/>`);
+    if (h.type === 'any') out.push(`<text x="${hx}" y="${hy + 4}" class="harbor-txt">3:1</text>`);
+    else out.push(`<text x="${hx}" y="${hy - 1}" class="harbor-ico">${RES_INFO[h.type].icon}</text><text x="${hx}" y="${hy + 11}" class="harbor-txt small">2:1</text>`);
+  });
+
+  const colors = opt.colors || [];
+  board.edges.forEach((e) => {
+    if (e.road === null) return;
+    const A = board.vertices[e.a]; const B = board.vertices[e.b];
+    const k = 0.14;
+    const x1 = A.x + (B.x - A.x) * k; const y1 = A.y + (B.y - A.y) * k;
+    const x2 = B.x + (A.x - B.x) * k; const y2 = B.y + (A.y - B.y) * k;
+    out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="road-bg"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="road" stroke="${colors[e.road]}"/>`);
+  });
+
+  if (board.storm >= 0) {
+    const t = board.tiles[board.storm];
+    out.push(`<g class="storm"><circle cx="${t.x}" cy="${t.y + 8}" r="22" class="storm-bg"/><text x="${t.x}" y="${t.y + 17}" class="storm-ico">⛈️</text></g>`);
+  }
+
+  board.vertices.forEach((v) => {
+    if (!v.building) return;
+    const c = colors[v.building.p];
+    if (v.building.t === 'village') out.push(`<path d="M${v.x - 9},${v.y + 8} v-10 l9,-8 l9,8 v10 z" class="bld" fill="${c}"/>`);
+    else out.push(`<path d="M${v.x - 13},${v.y + 10} v-12 l6,-6 l6,6 v-4 h8 v-4 h4 v20 z" class="bld" fill="${c}"/>`);
+  });
+
+  (opt.hintEdges || []).forEach((id) => {
+    const e = board.edges[id];
+    const A = board.vertices[e.a]; const B = board.vertices[e.b];
+    out.push(`<g class="hint" data-e="${id}"><line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" class="hit"/><line x1="${(A.x * 3 + B.x) / 4}" y1="${(A.y * 3 + B.y) / 4}" x2="${(A.x + B.x * 3) / 4}" y2="${(A.y + B.y * 3) / 4}" class="hint-edge"/></g>`);
+  });
+  (opt.hintVertices || []).forEach((id) => {
+    const v = board.vertices[id];
+    out.push(`<g class="hint" data-v="${id}"><circle cx="${v.x}" cy="${v.y}" r="16" class="hit"/><circle cx="${v.x}" cy="${v.y}" r="8" class="hint-vertex"/></g>`);
+  });
+
+  out.push('</svg>');
+  return out.join('');
+}
+
+// ======================= RENDER DISPATCH =======================
+function render() {
+  const inGame = ui.view === 'game' && S;
+  $('#game').hidden = !inGame;
+  $('#setup').hidden = !!inGame;
+  if (inGame) renderGame();
+  else if (ui.view === 'lobby' && net.game) renderLobby();
+  else if (ui.view === 'local-setup') renderLocalSetup();
+  else if (ui.view === 'loading') renderLoading();
+  else renderHome();
+}
+
+// Re-rendering replaces the DOM; keep focus and caret in text inputs.
+function keepFocus(fn) {
+  const a = document.activeElement;
+  const id = a && a.id;
+  const sel = a && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
+  fn();
+  if (id) {
+    const el = document.getElementById(id);
+    if (el && el !== document.activeElement) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* ignore */ } }
+  }
+}
+
+function renderStatus() {
+  const el = document.getElementById('net-status');
+  if (!el) return;
+  el.className = 'net-status' + (net.error ? ' err' : net.busy ? ' busy' : '');
+  el.textContent = net.error || (net.busy ? 'Saving…' : 'Live');
+}
+
+function shell(previewBoard, panelHTML) {
+  keepFocus(() => {
+    $('#setup').innerHTML = `
+      <div class="setup-preview">${previewBoard ? boardSVG(previewBoard) : ''}</div>
+      <div class="setup-form">${panelHTML}</div>`;
+  });
+}
+
+function mapPicker(selected, editable) {
+  return `<div class="maps">${Object.entries(MAPS).map(([k, m]) => `
+    <button class="map${k === selected ? ' sel' : ''}" data-map="${k}" ${editable ? '' : 'disabled'}><b>${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>`;
+}
+
+const errBanner = () => (net.error ? `<p class="banner err" role="alert">${esc(net.error)}</p>` : '');
+
+// ---------- Home ----------
+function onlineSection() {
+  if (!net.checked) return '<p class="muted">Connecting…</p>';
+  if (!net.db) {
+    return net.reason === 'plain'
+      ? '<p class="note">Online play works when Hexhaven is opened as a shared page on claude.ai. You can still play on one device below.</p>'
+      : '<p class="note">Sign in to claude.ai to play online with friends. You can still play on one device below.</p>';
+  }
+  const mine = (g) => (g.seats || []).some((s) => s.uid === net.uid);
+  const games = net.games.filter((g) => g.status !== 'over' || mine(g));
+  let list;
+  if (net.gamesState === 'loading') list = '<p class="muted">Loading games…</p>';
+  else if (net.gamesState === 'slow') list = '<p class="muted">Can’t reach the game list yet. Check your connection.</p>';
+  else if (!games.length) list = '<p class="muted">No games yet. Create one, then tell your friends the code.</p>';
+  else {
+    list = `<div class="glist">${games.map((g) => {
+      const status = g.status === 'lobby' ? 'Waiting to start' : g.status === 'over' ? 'Finished' : 'In progress';
+      return `<button class="gitem" data-open="${esc(g.code)}">
+        <span class="gcode">${esc(g.code)}</span>
+        <span class="gmeta"><b>${esc((MAPS[g.config && g.config.mapKey] || MAPS.classic).name)}</b> · ${status}${mine(g) ? ' · <span class="you">you’re in</span>' : ''}<br>
+        <small>${(g.seats || []).map((s) => esc(s.name)).join(', ')}</small></span>
+        <span class="gopen">${g.status === 'lobby' && !mine(g) ? 'Join' : 'Open'} ›</span></button>`;
+    }).join('')}</div>`;
+  }
+  return `
+    ${net.canWrite === false ? '<p class="note">You have view-only access, so you can watch games but not join them. Ask the owner to invite you as an Editor.</p>' : ''}
+    <div class="row">
+      <label for="nick">Your name</label><input id="nick" maxlength="16" value="${esc(ui.nick)}" placeholder="Name shown to others">
+    </div>
+    <button class="primary wide" id="create">Create online game</button>
+    <div class="row">
+      <input id="code" maxlength="5" placeholder="Game code" value="${esc(ui.joinCode)}" autocomplete="off" spellcheck="false">
+      <button id="open-code" class="ghost">Open</button>
+    </div>
+    ${list}`;
+}
+
+function renderHome() {
+  const saved = loadLocal();
+  shell(generateBoard('classic', 7), `
+    <h1>Hexhaven</h1>
+    <p class="tag">Settle the islands. Gather, trade, build. Every map is free.</p>
+    ${errBanner()}
+    <h3>Play online</h3>
+    ${onlineSection()}
+    <h3>Play on this device</h3>
+    ${saved ? `<button class="wide" id="continue">▶ Continue (${saved.players.length} players, turn ${saved.turn})</button>` : ''}
+    <button class="wide ghost" id="local">New game on this device</button>
+    <button class="ghost" id="help">How to play</button>`);
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  const nick = document.getElementById('nick');
+  if (nick) nick.oninput = () => { ui.nick = nick.value; };
+  const code = document.getElementById('code');
+  if (code) {
+    code.oninput = () => { code.value = code.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); ui.joinCode = code.value; };
+    code.onkeydown = (e) => { if (e.key === 'Enter' && code.value.length === 5) openGame(code.value); };
+  }
+  on('open-code', () => { if (ui.joinCode.length === 5) openGame(ui.joinCode); else { net.error = 'Game codes have 5 letters or digits.'; render(); } });
+  on('create', createGame);
+  on('continue', () => startLocal(unpack(saved)));
+  on('local', () => { ui.view = 'local-setup'; net.error = ''; render(); });
+  on('help', helpModal);
+  document.querySelectorAll('[data-open]').forEach((b) => { b.onclick = () => openGame(b.dataset.open); });
+}
+
+function renderLoading() {
+  shell(null, `<button class="ghost" id="back">← All games</button>${errBanner()}<p class="muted">Opening game ${esc(net.gameId || '')}…</p>`);
+  $('#back').onclick = () => goHome();
+}
+
+// ---------- Online lobby ----------
+function renderLobby() {
+  const g = net.game;
+  const host = isHost();
+  const seated = mySeat() >= 0;
+  const cfg = g.config;
+  shell(generateBoard(cfg.mapKey, cfg.seed), `
+    <button class="ghost" id="back">← All games</button>
+    ${errBanner()}
+    <p class="eyebrow">Game code</p>
+    <h1 class="code-big">${esc(g.code)}</h1>
+    <p class="tag">Friends open this page, then pick <b>${esc(g.code)}</b> from the list or type the code.</p>
+    <h3>Players (${g.seats.length}/6) <span id="net-status" class="net-status"></span></h3>
+    <div class="players">${g.seats.map((s, i) => `
+      <div class="pl" style="--pc:${PLAYER_COLORS[i]}"><span class="dot"></span><span class="pl-name">${esc(s.name)}</span>
+      ${s.uid === g.host ? '<span class="pl-stat">host</span>' : ''}${s.uid === net.uid ? '<span class="you">you</span>' : ''}</div>`).join('')}</div>
+    ${!seated && g.seats.length < 6 ? `
+      <div class="row"><label for="nick">Your name</label><input id="nick" maxlength="16" value="${esc(ui.nick)}"></div>
+      <button class="primary wide" id="join">Join this game</button>` : ''}
+    ${!seated && g.seats.length >= 6 ? '<p class="muted">This game is full.</p>' : ''}
+    ${seated && !host ? '<p class="muted">Waiting for the host to start…</p><button class="ghost" id="leave">Leave game</button>' : ''}
+    <h3>Map ${host ? '' : '<span class="muted small">(host chooses)</span>'}</h3>
+    ${mapPicker(cfg.mapKey, host)}
+    <div class="row">
+      <label for="seed">Seed</label><input id="seed" type="number" value="${cfg.seed}" ${host ? '' : 'disabled'}>
+      ${host ? '<button id="reroll" class="ghost">🎲 New layout</button>' : ''}
+    </div>
+    <div class="row"><label for="target">Points to win</label>
+      <select id="target" ${host ? '' : 'disabled'}>${[6, 8, 10, 12, 14].map((n) => `<option ${n === cfg.target ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+    ${host ? `<button class="primary wide" id="start" ${g.seats.length >= 2 ? '' : 'disabled'}>${g.seats.length >= 2 ? 'Start game' : 'Need at least 2 players'}</button>
+      <button class="ghost" id="delete">Delete game</button>` : ''}`);
+  renderStatus();
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  on('back', () => goHome());
+  on('join', joinLobby);
+  on('leave', leaveLobby);
+  on('start', startOnline);
+  on('delete', () => confirmModal('Delete this game for everyone?', deleteGame));
+  on('reroll', () => setConfig({ seed: Math.floor(Math.random() * 1e6) }));
+  const nick = document.getElementById('nick');
+  if (nick) nick.oninput = () => { ui.nick = nick.value; };
+  if (host) {
+    document.querySelectorAll('[data-map]').forEach((b) => { b.onclick = () => setConfig({ mapKey: b.dataset.map }); });
+    $('#seed').onchange = (e) => setConfig({ seed: Math.abs(parseInt(e.target.value, 10) || 0) });
+    $('#target').onchange = (e) => setConfig({ target: +e.target.value });
+  }
+}
+
+// ---------- One-device setup ----------
+const localCfg = { count: 4, names: ['Amber', 'Basil', 'Cedar', 'Dune', 'Ember', 'Fjord'], mapKey: 'classic', seed: Math.floor(Math.random() * 1e6), target: 10 };
+
+function renderLocalSetup() {
+  const cfg = localCfg;
+  shell(generateBoard(cfg.mapKey, cfg.seed), `
+    <button class="ghost" id="back">← Back</button>
+    <h1>One-device game</h1>
+    <p class="tag">Pass the device around. Saved in this browser.</p>
+    <h3>Map</h3>
+    ${mapPicker(cfg.mapKey, true)}
+    <div class="row">
+      <label for="seed">Seed</label><input id="seed" type="number" value="${cfg.seed}">
+      <button id="reroll" class="ghost">🎲 New layout</button>
+    </div>
+    <h3>Players</h3>
+    <div class="row"><label for="count">Count</label>
+      <select id="count">${[2, 3, 4, 5, 6].map((n) => `<option ${n === cfg.count ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      <label for="target">Points to win</label>
+      <select id="target">${[6, 8, 10, 12, 14].map((n) => `<option ${n === cfg.target ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    </div>
+    <div class="names">${Array.from({ length: cfg.count }, (_, i) => `
+      <label class="pname" style="--pc:${PLAYER_COLORS[i]}"><span class="dot"></span><input id="pname-${i}" data-name="${i}" maxlength="16" value="${esc(cfg.names[i])}"></label>`).join('')}</div>
+    <button class="primary wide" id="start">Start game</button>`);
+  $('#back').onclick = () => { ui.view = 'home'; render(); };
+  document.querySelectorAll('[data-map]').forEach((b) => { b.onclick = () => { cfg.mapKey = b.dataset.map; render(); }; });
+  document.querySelectorAll('[data-name]').forEach((inp) => { inp.oninput = () => { cfg.names[+inp.dataset.name] = inp.value; }; });
+  $('#seed').onchange = (e) => { cfg.seed = Math.abs(parseInt(e.target.value, 10) || 0); render(); };
+  $('#reroll').onclick = () => { cfg.seed = Math.floor(Math.random() * 1e6); render(); };
+  $('#count').onchange = (e) => { cfg.count = +e.target.value; render(); };
+  $('#target').onchange = (e) => { cfg.target = +e.target.value; };
+  $('#start').onclick = () => {
+    const players = Array.from({ length: cfg.count }, (_, i) => ({ name: (cfg.names[i] || '').trim() || `Player ${i + 1}`, color: PLAYER_COLORS[i] }));
+    startLocal(newGame({ players, mapKey: cfg.mapKey, seed: cfg.seed, target: cfg.target }));
+  };
+}
+
+function startLocal(state) {
+  if (net.unsubGame) { net.unsubGame(); net.unsubGame = null; }
+  net.gameId = null; net.game = null; net.error = '';
+  local = true; S = state;
+  ui.view = 'game'; ui.mode = null; ui.winSeen = false; closeModal();
+  saveLocal();
+  render();
+}
+
+// ======================= GAME SCREEN =======================
+function currentHints() {
+  const o = { hintVertices: [], hintEdges: [], hintTiles: [] };
+  if (!S || S.phase === 'over' || !controls(S.cur) || net.busy) return o;
+  const p = S.cur;
+  if (S.phase === 'setup') {
+    if (S.setup.need === 'village') o.hintVertices = validSpots(S, p, 'village');
+    else o.hintEdges = validSpots(S, p, 'road');
+    return o;
+  }
+  if (S.pending && S.pending.type === 'storm') {
+    o.hintTiles = S.board.tiles.filter((t) => t.id !== S.board.storm).map((t) => t.id);
+    return o;
+  }
+  if (ui.mode === 'road') o.hintEdges = validSpots(S, p, 'road');
+  if (ui.mode === 'village') o.hintVertices = validSpots(S, p, 'village');
+  if (ui.mode === 'town') o.hintVertices = validSpots(S, p, 'town');
+  return o;
+}
+
+function instruction() {
+  const P = S.players[S.cur];
+  if (S.phase === 'over') return `${esc(S.players[S.winner].name)} has won!`;
+  const mine = controls(S.cur);
+  const who = esc(P.name);
+  if (S.pending && S.pending.type === 'discard') {
+    const waiting = S.pending.queue.map((q) => esc(S.players[q].name)).join(', ');
+    return `Storm! Waiting for ${waiting} to discard half their cards.`;
+  }
+  if (!mine) {
+    if (S.phase === 'setup') return `${who} is placing a ${S.setup.need}…`;
+    if (S.pending && S.pending.type === 'storm') return `${who} is moving the storm…`;
+    if (S.pending && S.pending.type === 'steal') return `${who} is choosing who to steal from…`;
+    return S.rolled ? `${who} is building and trading…` : `Waiting for ${who} to roll…`;
+  }
+  if (S.phase === 'setup') {
+    const round = S.setup.step < S.players.length ? 1 : 2;
+    return S.setup.need === 'village'
+      ? `Setup round ${round}: place a <b>village</b> on a glowing corner.${round === 2 ? ' You’ll collect from its tiles.' : ''}`
+      : 'Now place a <b>road</b> next to it.';
+  }
+  if (S.pending && S.pending.type === 'storm') return 'Move the <b>storm</b> ⛈️ to a new tile. It blocks production there.';
+  if (S.pending && S.pending.type === 'steal') return 'Choose who to steal from.';
+  if (!S.rolled) return 'Roll the dice to start your turn.';
+  if (ui.mode) return `Click a glowing spot to build a <b>${ui.mode}</b>, or click the button again to cancel.`;
+  return `Build, trade, or end your turn. First to <b>${S.target}</b> points wins.`;
+}
+
+const costHTML = (cost) => Object.entries(cost).map(([r, n]) => `<span class="cost">${n > 1 ? n : ''}${RES_INFO[r].icon}</span>`).join('');
+const diceFace = (n) => ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][n - 1];
+const fmtHand = (h) => RES.filter((r) => h[r]).map((r) => `${h[r]} ${RES_INFO[r].icon}`).join(', ') || 'nothing';
+
+function renderGame() {
+  if (ui.mode && !(canAct(S) && controls(S.cur))) ui.mode = null;
+  const colors = S.players.map((p) => p.color);
+  $('#board').innerHTML = boardSVG(S.board, { colors, ...currentHints() });
+
+  const p = S.cur;
+  const P = S.players[p];
+  const mine = controls(p);
+  const act_ = canAct(S) && mine && !net.busy;
+  const hp = handOwner();
+  const H = hp >= 0 ? S.players[hp] : null;
+  const buildBtn = (kind, label) => {
+    const left = kind === 'town' ? LIMITS.town - P.towns : kind === 'village' ? LIMITS.village - P.villages : LIMITS.road - P.roads;
+    const ok = act_ && canAfford(P.hand, COSTS[kind]) && left > 0 && validSpots(S, p, kind).length > 0;
+    return `<button class="build${ui.mode === kind ? ' active' : ''}" data-build="${kind}" ${ok || ui.mode === kind ? '' : 'disabled'}>
+      <span>${label}</span><span class="costs">${costHTML(COSTS[kind])}</span><small>${left} left</small></button>`;
+  };
+  const offer = S.offer;
+  const myOffer = offer && controls(offer.from) && !local;
+
+  $('#side').innerHTML = `
+    ${!local ? `<section class="online-bar"><button class="ghost small-btn" id="games">← Games</button>
+      <span>Game <b>${esc(net.gameId)}</b>${mySeat() >= 0 ? ` · you’re <b style="color:${S.players[mySeat()].color}">${esc(S.players[mySeat()].name)}</b>` : ' · watching'}</span>
+      <span id="net-status" class="net-status"></span></section>` : ''}
+    <section class="turn" style="--pc:${P.color}">
+      <div class="turn-name"><span class="dot"></span>${esc(P.name)}${!local && mine ? ' <span class="you">your turn</span>' : ''}</div>
+      <div class="turn-sub">${S.phase === 'setup' ? 'Setup' : `Turn ${S.turn}`}</div>
+      <p class="instr">${instruction()}</p>
+      ${S.phase === 'main' ? `
+      <div class="dice-row">
+        <div class="dice">${S.dice ? `${diceFace(S.dice[0])}${diceFace(S.dice[1])}<span class="dice-total">${S.dice[0] + S.dice[1]}</span>` : '<span class="muted">—</span>'}</div>
+        ${mine ? (!S.rolled ? `<button class="primary" id="roll" ${net.busy || S.pending ? 'disabled' : ''}>🎲 Roll</button>` : `<button class="primary" id="end" ${act_ ? '' : 'disabled'}>End turn ➜</button>`) : ''}
+      </div>` : ''}
+      ${myOffer ? `<div class="offer-wait">Offer to <b>${esc(S.players[offer.to].name)}</b>: ${fmtHand(offer.give)} for ${fmtHand(offer.get)}. Waiting for an answer… <button class="ghost small-btn" id="cancel-offer">Cancel</button></div>` : ''}
+    </section>
+    <section>
+      <h3>${local || hp < 0 ? '' : 'Your '}hand${local ? ` · ${esc(P.name)}` : ''}</h3>
+      ${H ? `<div class="hand">${RES.map((r) => `<div class="card" style="--rc:${RES_INFO[r].color}" title="${RES_INFO[r].name}"><span>${RES_INFO[r].icon}</span><b>${H.hand[r]}</b><small>${RES_INFO[r].name}</small></div>`).join('')}</div>`
+        : '<p class="muted">You’re watching this game.</p>'}
+    </section>
+    ${S.phase === 'main' && mine ? `
+    <section>
+      <h3>Build</h3>
+      <div class="builds">${buildBtn('road', 'Road')}${buildBtn('village', 'Village')}${buildBtn('town', 'Town')}</div>
+      <div class="trades">
+        <button id="bank" ${act_ ? '' : 'disabled'}>🏦 Bank trade</button>
+        <button id="ptrade" ${act_ && !offer ? '' : 'disabled'}>🤝 Trade with player</button>
+      </div>
+    </section>` : ''}
+    <section>
+      <h3>Players</h3>
+      <div class="players">${S.players.map((Q, i) => `
+        <div class="pl${i === p ? ' cur' : ''}" style="--pc:${Q.color}">
+          <span class="dot"></span><span class="pl-name">${esc(Q.name)}${!local && i === mySeat() ? ' <span class="you">you</span>' : ''}</span>
+          <span class="pl-stat" title="Cards in hand">🃏 ${handSize(Q.hand)}</span>
+          <span class="pl-stat" title="Longest road">🛤️ ${Q.road}${S.longestHolder === i ? ' 🏅' : ''}</span>
+          <span class="pl-vp" title="Victory points">${vp(S, i)}<small>VP</small></span>
+        </div>`).join('')}</div>
+    </section>
+    <section class="log-wrap">
+      <h3>Log</h3>
+      <div class="log" id="log">${S.log.map((l) => `<div>${esc(l)}</div>`).join('')}</div>
+    </section>
+    <section class="menu">${local ? '<button id="newgame" class="ghost">New game</button>' : ''}<button id="help" class="ghost">How to play</button></section>
+  `;
+  const lg = $('#log'); lg.scrollTop = lg.scrollHeight;
+  renderStatus();
+  bindSide();
+  syncModal();
+}
+
+function bindSide() {
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  on('roll', () => { ui.mode = null; act((s, rng) => rollDice(s, rng)); });
+  on('end', () => { ui.mode = null; act((s) => endTurn(s)); });
+  on('bank', () => { ui.mode = null; bankModal(); });
+  on('ptrade', () => { ui.mode = null; tradeModal(); });
+  on('cancel-offer', () => act((s) => cancelOffer(s)));
+  on('games', () => goHome());
+  on('newgame', () => confirmModal('Abandon this game and start a new one?', () => { storeSet(SAVE_KEY, null); ui.view = 'local-setup'; S = null; local = false; render(); }));
+  on('help', helpModal);
+  document.querySelectorAll('[data-build]').forEach((b) => {
+    b.onclick = () => { ui.mode = ui.mode === b.dataset.build ? null : b.dataset.build; render(); };
+  });
+}
+
+function onBoardClick(ev) {
+  if (!S || !controls(S.cur) || net.busy) return;
+  const g = ev.target.closest('[data-v],[data-e],[data-t]');
+  if (!g) return;
+  if (g.dataset.t !== undefined) { const t = +g.dataset.t; act((s, rng) => moveStorm(s, t, rng)); return; }
+  if (g.dataset.e !== undefined) {
+    const e = +g.dataset.e;
+    if (S.phase === 'main') ui.mode = null;
+    act((s) => placeRoad(s, e));
+  } else if (g.dataset.v !== undefined) {
+    const v = +g.dataset.v;
+    if (S.phase === 'setup') act((s) => placeVillage(s, v));
+    else if (ui.mode === 'village') { ui.mode = null; act((s) => placeVillage(s, v)); }
+    else if (ui.mode === 'town') { ui.mode = null; act((s) => placeTown(s, v)); }
+  }
+}
+
+// ======================= MODALS =======================
+const SYSTEM_MODALS = new Set(['discard', 'steal', 'offer', 'win']);
+
+function openModal(html, key, { dismissable = true } = {}) {
+  const m = $('#modal');
+  m.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true">${html}</div>`;
+  m.hidden = false;
+  ui.modal = key;
+  m.onclick = dismissable ? (e) => { if (e.target === m) closeModal(); } : null;
+  return m.firstElementChild;
+}
+function closeModal() { const m = $('#modal'); if (!m) return; m.hidden = true; m.innerHTML = ''; m.onclick = null; ui.modal = null; }
+
+function confirmModal(text, yes) {
+  const c = openModal(`<p>${esc(text)}</p><div class="row end"><button class="ghost" id="no">Cancel</button><button class="primary" id="yes">Yes</button></div>`, 'confirm');
+  c.querySelector('#no').onclick = closeModal;
+  c.querySelector('#yes').onclick = () => { closeModal(); yes(); };
+}
+
+function requiredModal() {
+  if (!S) return null;
+  if (S.phase === 'over') return ui.winSeen ? null : 'win';
+  const pd = S.pending;
+  if (pd && pd.type === 'discard') {
+    const p = local ? pd.queue[0] : (pd.queue.includes(mySeat()) ? mySeat() : -1);
+    if (p >= 0) return 'discard:' + p;
+  }
+  if (pd && pd.type === 'steal' && controls(S.cur)) return 'steal';
+  if (S.offer && controls(S.offer.to)) return 'offer:' + S.offer.id;
+  return null;
+}
+
+function syncModal() {
+  const want = requiredModal();
+  if (want) {
+    if (ui.modal !== want) {
+      const [kind, arg] = want.split(':');
+      if (kind === 'win') winModal();
+      else if (kind === 'discard') discardModal(+arg, want);
+      else if (kind === 'steal') stealModal();
+      else if (kind === 'offer') offerModal(want);
+    }
+    return;
+  }
+  if (ui.modal && SYSTEM_MODALS.has(ui.modal.split(':')[0])) closeModal();
+}
+
+function stepperRow(prefix, counts, max) {
+  return RES.map((r) => `
+    <div class="stepper" style="--rc:${RES_INFO[r].color}">
+      <span class="st-ico" title="${RES_INFO[r].name}">${RES_INFO[r].icon}</span>
+      <button data-${prefix}-dec="${r}" aria-label="Fewer ${RES_INFO[r].name}" ${counts[r] <= 0 ? 'disabled' : ''}>−</button>
+      <b>${counts[r]}</b>
+      <button data-${prefix}-inc="${r}" aria-label="More ${RES_INFO[r].name}" ${max && counts[r] >= max[r] ? 'disabled' : ''}>+</button>
+    </div>`).join('');
+}
+function bindSteppers(card, prefix, counts, max, redraw) {
+  card.querySelectorAll(`[data-${prefix}-inc]`).forEach((b) => {
+    b.onclick = () => { const r = b.getAttribute(`data-${prefix}-inc`); if (!max || counts[r] < max[r]) counts[r]++; redraw(); };
+  });
+  card.querySelectorAll(`[data-${prefix}-dec]`).forEach((b) => {
+    b.onclick = () => { const r = b.getAttribute(`data-${prefix}-dec`); if (counts[r] > 0) counts[r]--; redraw(); };
+  });
+}
+
+function discardModal(p, key) {
+  const pick = emptyHand();
+  const draw = () => {
+    const P = S.players[p];
+    const need = discardNeeded(S, p);
+    const n = handSize(pick);
+    const c = openModal(`
+      <h2 style="color:${P.color}">${esc(P.name)}: discard ${need}</h2>
+      <p class="muted">The storm scatters your goods.${local ? ` Pass the device to ${esc(P.name)}.` : ''}</p>
+      <p>Your hand: ${RES.map((r) => `${RES_INFO[r].icon}${P.hand[r]}`).join(' &nbsp; ')}</p>
+      <div class="steppers">${stepperRow('d', pick, P.hand)}</div>
+      <div class="row end"><span class="muted">${n} / ${need}</span><button class="primary" id="ok" ${n === need ? '' : 'disabled'}>Discard</button></div>`, key, { dismissable: false });
+    bindSteppers(c, 'd', pick, P.hand, draw);
+    c.querySelector('#ok').onclick = () => { const cards = { ...pick }; closeModal(); act((s) => discard(s, p, cards)); };
+  };
+  draw();
+}
+
+function stealModal() {
+  const c = openModal(`<h2>Steal from…</h2><div class="choices">${S.pending.victims.map((v) =>
+    `<button data-victim="${v}" style="--pc:${S.players[v].color}"><span class="dot"></span>${esc(S.players[v].name)} <span class="muted">(${handSize(S.players[v].hand)} cards)</span></button>`).join('')}</div>`, 'steal', { dismissable: false });
+  c.querySelectorAll('[data-victim]').forEach((b) => { b.onclick = () => { const v = +b.dataset.victim; closeModal(); act((s, rng) => steal(s, v, rng)); }; });
+}
+
+function offerModal(key) {
+  const o = S.offer;
+  const A = S.players[o.from];
+  const B = S.players[o.to];
+  const can = canAfford(B.hand, o.get);
+  const c = openModal(`
+    <h2 style="color:${B.color}">${esc(B.name)}, trade offer</h2>
+    <p>${esc(A.name)} offers <b>${fmtHand(o.give)}</b><br>for your <b>${fmtHand(o.get)}</b>.</p>
+    ${can ? '' : '<p class="warn">You don’t have the cards they asked for.</p>'}
+    <div class="row end"><button class="ghost" id="no">Decline</button><button class="primary" id="yes" ${can ? '' : 'disabled'}>Accept</button></div>`, key, { dismissable: false });
+  const to = o.to;
+  c.querySelector('#no').onclick = () => { closeModal(); act((s) => respondOffer(s, to, false)); };
+  c.querySelector('#yes').onclick = () => { closeModal(); act((s) => respondOffer(s, to, true)); };
+}
+
+function bankModal() {
+  let give = null; let get = null;
+  const draw = () => {
+    const P = S.players[S.cur];
+    const c = openModal(`
+      <h2>🏦 Bank trade</h2>
+      <p class="muted">Harbors improve your rate. 3:1 harbors work for any resource; 2:1 harbors for one type.</p>
+      <h4>Give</h4>
+      <div class="pick">${RES.map((r) => { const rate = tradeRate(S, S.cur, r); return `<button data-give="${r}" class="${give === r ? 'sel' : ''}" ${P.hand[r] >= rate ? '' : 'disabled'}>${RES_INFO[r].icon}<small>${rate}:1 · have ${P.hand[r]}</small></button>`; }).join('')}</div>
+      <h4>Receive</h4>
+      <div class="pick">${RES.map((r) => `<button data-get="${r}" class="${get === r ? 'sel' : ''}" ${r === give ? 'disabled' : ''}>${RES_INFO[r].icon}<small>${RES_INFO[r].name}</small></button>`).join('')}</div>
+      <div class="row end"><button class="ghost" id="close">Done</button><button class="primary" id="ok" ${give && get && give !== get && !net.busy ? '' : 'disabled'}>Trade</button></div>`, 'bank');
+    c.querySelectorAll('[data-give]').forEach((b) => { b.onclick = () => { give = b.dataset.give; if (get === give) get = null; draw(); }; });
+    c.querySelectorAll('[data-get]').forEach((b) => { b.onclick = () => { get = b.dataset.get; draw(); }; });
+    c.querySelector('#close').onclick = closeModal;
+    c.querySelector('#ok').onclick = async () => {
+      const g1 = give; const g2 = get;
+      await act((s) => bankTrade(s, g1, g2));
+      if (!S || ui.view !== 'game') return;
+      if (S.players[S.cur].hand[give] < tradeRate(S, S.cur, give)) give = null;
+      if (ui.modal === 'bank' || ui.modal === null) draw();
+    };
+  };
+  draw();
+}
+
+function tradeModal() {
+  const others = S.players.map((_, i) => i).filter((i) => i !== S.cur);
+  let partner = others[0];
+  const give = emptyHand(); const get = emptyHand();
+  const draw = () => {
+    const A = S.players[S.cur];
+    const B = S.players[partner];
+    const valid = handSize(give) + handSize(get) > 0 && canAfford(A.hand, give);
+    const c = openModal(`
+      <h2>🤝 Trade with a player</h2>
+      <h4>Partner</h4>
+      <div class="choices inline">${others.map((i) => `<button data-partner="${i}" class="${i === partner ? 'sel' : ''}" style="--pc:${S.players[i].color}"><span class="dot"></span>${esc(S.players[i].name)} <span class="muted">${handSize(S.players[i].hand)}🃏</span></button>`).join('')}</div>
+      <h4>You give</h4><div class="steppers">${stepperRow('g', give, A.hand)}</div>
+      <h4>You get</h4><div class="steppers">${stepperRow('r', get, null)}</div>
+      <div class="row end"><button class="ghost" id="close">Cancel</button><button class="primary" id="ok" ${valid ? '' : 'disabled'}>Offer to ${esc(B.name)}</button></div>`, 'trade');
+    c.querySelectorAll('[data-partner]').forEach((b) => { b.onclick = () => { partner = +b.dataset.partner; draw(); }; });
+    bindSteppers(c, 'g', give, A.hand, draw);
+    bindSteppers(c, 'r', get, null, draw);
+    c.querySelector('#close').onclick = closeModal;
+    c.querySelector('#ok').onclick = () => {
+      const to = partner; const gv = { ...give }; const gt = { ...get };
+      closeModal();
+      act((s, rng) => makeOffer(s, to, gv, gt, rng));
+    };
+  };
+  draw();
+}
+
+function winModal() {
+  const ranked = S.players.map((P, i) => ({ P, i, v: vp(S, i) })).sort((a, b) => b.v - a.v);
+  const c = openModal(`
+    <h2 class="win">🏆 ${esc(S.players[S.winner].name)} wins!</h2>
+    <ol class="ranks">${ranked.map((x) => `<li style="--pc:${x.P.color}"><span class="dot"></span>${esc(x.P.name)} <b>${x.v} VP</b></li>`).join('')}</ol>
+    <div class="row end"><button class="ghost" id="view">View board</button><button class="primary" id="again">${local ? 'New game' : 'Back to games'}</button></div>`, 'win', { dismissable: false });
+  c.querySelector('#view').onclick = () => { ui.winSeen = true; closeModal(); };
+  c.querySelector('#again').onclick = () => {
+    closeModal();
+    if (local) { storeSet(SAVE_KEY, null); local = false; S = null; ui.view = 'local-setup'; render(); } else goHome();
+  };
+}
+
+function helpModal() {
+  const c = openModal(`
+    <h2>How to play Hexhaven</h2>
+    <ul class="help">
+      <li><b>Goal:</b> be the first to reach the target score. Villages are worth 1 point, towns 2, and holding <b>Longest Road</b> (5+ connected road segments) is worth 2.</li>
+      <li><b>Setup:</b> everyone places a village and a road, then again in reverse order. Your second village gives you one card from each tile it touches.</li>
+      <li><b>Each turn:</b> roll the dice. Every tile showing that number produces for adjacent villages (1 card) and towns (2 cards).</li>
+      <li><b>Rolling 7:</b> anyone holding more than 7 cards discards half. The roller moves the ⛈️ storm (that tile stops producing) and steals a card from someone next to it.</li>
+      <li><b>Building:</b> Road ${costHTML(COSTS.road)} · Village ${costHTML(COSTS.village)} · Town ${costHTML(COSTS.town)} (upgrade from a village).</li>
+      <li><b>Placement:</b> villages need at least one empty corner between them and any other building, and (after setup) must touch one of your roads.</li>
+      <li><b>Trading:</b> trade with the bank at 4:1, or 3:1 / 2:1 if you’ve built at a harbor. On your turn you can also offer a trade to another player.</li>
+      <li><b>Online:</b> create a game, share its code, and everyone joins from their own device. Each player only sees their own hand.</li>
+    </ul>
+    <div class="row end"><button class="primary" id="ok">Got it</button></div>`, 'help');
+  c.querySelector('#ok').onclick = closeModal;
+}
+
+// ======================= BOOT =======================
+function boot() {
+  $('#board').addEventListener('click', onBoardClick);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!$('#modal').hidden && $('#modal').onclick) closeModal();
+    else if (ui.mode) { ui.mode = null; render(); }
+  });
+  render();
+  initNet();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+
+// Exposed for automated testing.
+window.Hexhaven = { get state() { return S; }, render, startLocal, act, get ui() { return ui; }, get net() { return net; } };
+
+</script>

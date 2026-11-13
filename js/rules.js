@@ -34,6 +34,7 @@ function newGame({ players, mapKey, seed, target }) {
     rolled: false,
     dice: null,
     pending: null,             // {type:'discard', queue:[...]} | {type:'storm'} | {type:'steal', victims:[...]}
+    offer: null,               // {id, from, to, give, get} — a trade waiting for the other player
     longestHolder: -1,
     winner: -1,
     log: [],
@@ -43,7 +44,7 @@ function newGame({ players, mapKey, seed, target }) {
 
 function log(s, msg) {
   s.log.push(msg);
-  if (s.log.length > 200) s.log.shift();
+  if (s.log.length > 80) s.log.shift();
 }
 
 function vp(s, p) {
@@ -240,13 +241,13 @@ function rollDice(s, rng = Math.random) {
 function discardNeeded(s, p) { return Math.floor(handSize(s.players[p].hand) / 2); }
 
 function discard(s, p, cards) {
-  if (!s.pending || s.pending.type !== 'discard' || s.pending.queue[0] !== p) return false;
+  if (!s.pending || s.pending.type !== 'discard' || !s.pending.queue.includes(p)) return false;
   const P = s.players[p];
   const n = RES.reduce((t, r) => t + (cards[r] || 0), 0);
   if (n !== discardNeeded(s, p) || RES.some((r) => (cards[r] || 0) > P.hand[r] || (cards[r] || 0) < 0)) return false;
   RES.forEach((r) => { P.hand[r] -= cards[r] || 0; });
   log(s, `   ${P.name} discards ${n} cards.`);
-  s.pending.queue.shift();
+  s.pending.queue = s.pending.queue.filter((q) => q !== p);
   if (!s.pending.queue.length) s.pending = { type: 'storm' };
   return true;
 }
@@ -321,8 +322,33 @@ function playerTrade(s, other, give, get) {
   return true;
 }
 
+function makeOffer(s, to, give, get, rng = Math.random) {
+  const A = s.players[s.cur];
+  if (!canAct(s) || to === s.cur || !s.players[to] || !canAfford(A.hand, give)) return false;
+  if (handSize(give) + handSize(get) === 0) return false;
+  s.offer = { id: Math.floor(rng() * 1e9), from: s.cur, to, give: { ...emptyHand(), ...give }, get: { ...emptyHand(), ...get } };
+  log(s, `📨 ${A.name} offers a trade to ${s.players[to].name}.`);
+  return true;
+}
+
+function cancelOffer(s) {
+  if (!s.offer) return false;
+  s.offer = null;
+  return true;
+}
+
+function respondOffer(s, p, accept) {
+  const o = s.offer;
+  if (!o || o.to !== p || o.from !== s.cur) return false;
+  s.offer = null;
+  if (!accept) { log(s, `   ${s.players[p].name} declines.`); return true; }
+  if (!playerTrade(s, p, o.give, o.get)) log(s, '   The trade fell through: someone no longer has the cards.');
+  return true;
+}
+
 function endTurn(s) {
   if (!canAct(s)) return false;
+  s.offer = null;
   s.cur = (s.cur + 1) % s.players.length;
   s.rolled = false;
   s.dice = null;
