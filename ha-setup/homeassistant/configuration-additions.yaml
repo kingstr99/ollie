@@ -1,0 +1,6 @@
+# Add these lines to /config/configuration.yaml (via the File editor add-on),
+# then Developer tools > YAML > Check configuration > Restart.
+
+# Lets automations delete doorbell snapshots older than 14 days so the disk never fills.
+shell_command:
+  cleanup_doorbell_snapshots: "find /media/doorbell -type f -name '*.jpg' -mtime +14 -delete"

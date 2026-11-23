@@ -1,0 +1,98 @@
+# Ring-style doorbell picture notifications for a Reolink PoE doorbell.
+#
+# HOW TO USE: Settings > Automations > Create automation > (⋮) Edit in YAML,
+# paste ONE automation block (from "alias:" to the next "---"), Save. Repeat.
+#
+# BEFORE PASTING, replace these 3 placeholders with your real entity IDs
+# (find them in Settings > Devices > [your doorbell] after the Reolink integration is added):
+#   binary_sensor.front_door_visitor   -> doorbell button ("Visitor") sensor
+#   binary_sensor.front_door_person    -> person detection sensor
+#   camera.front_door_fluent           -> camera entity (a "fluent"/"clear" stream)
+#   notify.mobile_app_samsung_phone    -> your phone (appears after the Companion app logs in)
+
+alias: Doorbell - pressed - picture notification
+description: Snapshot + high-priority notification when the doorbell button is pressed.
+mode: single            # ignore repeated presses while one is being handled
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door_visitor
+    to: "on"
+actions:
+  - variables:
+      file: "doorbell/ring_{{ now().strftime('%Y%m%d_%H%M%S') }}.jpg"
+  - action: camera.snapshot
+    target:
+      entity_id: camera.front_door_fluent
+    data:
+      filename: "/media/{{ file }}"
+  - delay: { seconds: 1 }   # give the file time to be written
+  - action: notify.mobile_app_samsung_phone
+    data:
+      title: "🔔 Someone is at the door"
+      message: "Doorbell pressed at {{ now().strftime('%H:%M') }}"
+      data:
+        image: "/media/local/{{ file }}"
+        channel: Doorbell          # Android notification channel (set its sound/vibration in phone settings)
+        importance: high
+        priority: high
+        ttl: 0                     # deliver immediately, even in Doze
+        tag: doorbell              # newest alert replaces the previous one
+        clickAction: "entityId:camera.front_door_fluent"   # tap -> live view inside HA app
+        actions:
+          - action: URI
+            title: "Live view"
+            uri: "entityId:camera.front_door_fluent"
+  - delay: { seconds: 10 }    # debounce
+---
+alias: Doorbell - person detected - picture notification
+description: Snapshot + normal-priority notification on person detection (max once per 2 min).
+mode: single
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door_person
+    to: "on"
+conditions:
+  # don't double-notify if the bell was just pressed
+  - condition: template
+    value_template: >
+      {{ (now() - states.binary_sensor.front_door_visitor.last_changed).total_seconds() > 60 }}
+actions:
+  - variables:
+      file: "doorbell/person_{{ now().strftime('%Y%m%d_%H%M%S') }}.jpg"
+  - action: camera.snapshot
+    target:
+      entity_id: camera.front_door_fluent
+    data:
+      filename: "/media/{{ file }}"
+  - delay: { seconds: 1 }
+  - action: notify.mobile_app_samsung_phone
+    data:
+      title: "🚶 Person at the front door"
+      message: "Detected at {{ now().strftime('%H:%M') }}"
+      data:
+        image: "/media/local/{{ file }}"
+        channel: Doorbell motion
+        importance: default
+        tag: doorbell_person
+        clickAction: "entityId:camera.front_door_fluent"
+  - delay: { minutes: 2 }     # cooldown so you aren't spammed while someone lingers
+---
+alias: Doorbell - clean up old snapshots
+description: Deletes doorbell snapshots older than 14 days, nightly at 03:17.
+mode: single
+triggers:
+  - trigger: time
+    at: "03:17:00"
+actions:
+  - action: shell_command.cleanup_doorbell_snapshots
+---
+alias: Home Assistant - started notification
+description: Tells you when HA comes back up (e.g. after a Windows Update restart).
+triggers:
+  - trigger: homeassistant
+    event: start
+actions:
+  - action: notify.mobile_app_samsung_phone
+    data:
+      title: "Home Assistant is online"
+      message: "Started at {{ now().strftime('%H:%M %d %b') }}"
