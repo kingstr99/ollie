@@ -36,38 +36,52 @@
               uri: "entityId:camera.front_door_fluent"
     - delay: { seconds: 10 }
 
-- id: doorbell_person_picture
-  alias: Doorbell - person detected - picture notification
-  description: Snapshot + notification on person detection (max once per 2 min, skipped if bell just pressed).
+- id: doorbell_motion_picture
+  alias: Doorbell - motion or person - picture notification
+  description: >
+    Snapshot + notification on any motion or person at the front door.
+    At most one alert per minute; skipped for 30 s after a doorbell press
+    (Reolink already shows its full-screen call then).
   mode: single
   triggers:
     - trigger: state
       entity_id: binary_sensor.front_door_person
       to: "on"
+    - trigger: state
+      entity_id: binary_sensor.front_door_motion
+      to: "on"
   conditions:
     - condition: template
       value_template: >
-        {{ (now() - states.binary_sensor.front_door_visitor.last_changed).total_seconds() > 60 }}
+        {{ (now() - states.binary_sensor.front_door_visitor.last_changed).total_seconds() > 30 }}
   actions:
     - variables:
-        file: "doorbell/person_{{ now().strftime('%Y%m%d_%H%M%S') }}.jpg"
+        file: "doorbell/motion_{{ now().strftime('%Y%m%d_%H%M%S') }}.jpg"
     - action: camera.snapshot
       target:
         entity_id: camera.front_door_fluent
       data:
         filename: "/media/{{ file }}"
     - delay: { seconds: 1 }
+    - variables:
+        is_person: "{{ is_state('binary_sensor.front_door_person', 'on') }}"
     - action: notify.mobile_app_ollie_s25_ultra
       data:
-        title: "🚶 Person at the front door"
-        message: "Detected at {{ now().strftime('%H:%M') }}"
+        title: "{{ '🚶 Person at the front door' if is_person else '👀 Motion at the front door' }}"
+        message: "{{ now().strftime('%H:%M') }}"
         data:
           image: "/media/local/{{ file }}"
           channel: Doorbell motion
-          importance: default
-          tag: doorbell_person
+          importance: high
+          priority: high
+          ttl: 0
+          tag: doorbell_motion
           clickAction: "entityId:camera.front_door_fluent"
-    - delay: { minutes: 2 }
+          actions:
+            - action: URI
+              title: "Live view"
+              uri: "entityId:camera.front_door_fluent"
+    - delay: { seconds: 60 }
 
 - id: doorbell_snapshot_cleanup
   alias: Doorbell - clean up old snapshots
