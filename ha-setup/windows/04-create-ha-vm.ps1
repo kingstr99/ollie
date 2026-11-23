@@ -6,18 +6,20 @@
 #   - uses fixed RAM and no automatic checkpoints (avoids disk bloat)
 # Does not touch any other VM, program or setting.
 #
-# Usage (elevated):  .\04-create-ha-vm.ps1                 (defaults: 2 vCPU, 4 GB RAM)
+# Usage (elevated):  .\04-create-ha-vm.ps1                 (defaults: 2 vCPU, 2 GB RAM)
 #                    .\04-create-ha-vm.ps1 -Cpu 2 -RamGB 3 -VmRoot 'D:\HyperV'
 
 #Requires -RunAsAdministrator
 param(
   [int]$Cpu = 2,
-  [int]$RamGB = 4,
+  [int]$RamGB = 2,
   [string]$VmRoot = "$env:PUBLIC\Documents\Hyper-V\HomeAssistant",
   [string]$SwitchName = 'HA-LAN',
   [string]$VmName = 'HomeAssistant'
 )
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'   # PS 5.1 downloads are ~10x slower with the progress bar
+Write-Host "Downloading Home Assistant OS (~500 MB). This can take a few minutes with no output..."
 if (Get-VM -Name $VmName -ErrorAction SilentlyContinue) { "VM '$VmName' already exists."; return }
 Get-VMSwitch -Name $SwitchName | Out-Null   # fails early if step 03 wasn't done
 
