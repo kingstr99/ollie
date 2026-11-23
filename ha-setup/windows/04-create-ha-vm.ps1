@@ -24,11 +24,28 @@ if (Get-VM -Name $VmName -ErrorAction SilentlyContinue) { "VM '$VmName' already 
 Get-VMSwitch -Name $SwitchName | Out-Null   # fails early if step 03 wasn't done
 
 New-Item -ItemType Directory -Force -Path $VmRoot | Out-Null
-$rel  = Invoke-RestMethod 'https://api.github.com/repos/home-assistant/operating-system/releases/latest'
+# Newest stable release that actually contains a Hyper-V disk (some releases are Raspberry Pi only)
+$releases = Invoke-RestMethod 'https://api.github.com/repos/home-assistant/operating-system/releases?per_page=15'
+$rel = $releases | Where-Object { -not $_.prerelease -and -not $_.draft -and ($_.assets.name -match '^haos_ova-.*\.vhdx\.zip$') } | Select-Object -First 1
+if (-not $rel) { throw 'Could not find a Hyper-V image in recent releases. Send this screen to Claude.' }
 $asset = $rel.assets | Where-Object name -match '^haos_ova-.*\.vhdx\.zip$' | Select-Object -First 1
-"Latest Home Assistant OS: $($rel.tag_name)  ->  $($asset.name)"
+"Home Assistant OS $($rel.tag_name)  ->  $($asset.name)"
 $zip = Join-Path $VmRoot $asset.name
 Invoke-WebRequest $asset.browser_download_url -OutFile $zip -UseBasicParsing
+
+# Verify the download against the official SHA256SUMS file, when the release has one
+$sums = $rel.assets | Where-Object name -eq 'SHA256SUMS'
+if ($sums) {
+  $sumText = (Invoke-WebRequest $sums.browser_download_url -UseBasicParsing).Content
+  if ($sumText -is [byte[]]) { $sumText = [Text.Encoding]::UTF8.GetString($sumText) }
+  $line = ($sumText -split "`n") | Where-Object { $_ -match [regex]::Escape($asset.name) } | Select-Object -First 1
+  if ($line) {
+    $expected = ($line -split '\s+')[0].ToLower()
+    $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+    if ($expected -ne $actual) { Remove-Item $zip; throw 'Checksum MISMATCH - download deleted. Send this screen to Claude.' }
+    Write-Host 'Checksum verified OK.' -ForegroundColor Green
+  } else { 'Note: this file is not listed in SHA256SUMS; skipping checksum.' }
+}
 Expand-Archive $zip -DestinationPath $VmRoot -Force
 Remove-Item $zip
 $vhdx = Get-ChildItem $VmRoot -Filter 'haos_ova-*.vhdx' | Select-Object -First 1
