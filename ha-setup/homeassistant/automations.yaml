@@ -1,0 +1,93 @@
+# Paste this whole file into /homeassistant/automations.yaml (File editor), replacing what's there.
+# Then: Settings > Automations & scenes > (⋮) Reload automations.
+
+- id: doorbell_pressed_picture
+  alias: Doorbell - pressed - picture notification
+  description: Snapshot + high-priority notification when the doorbell button is pressed.
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_door_visitor
+      to: "on"
+  actions:
+    - variables:
+        file: "doorbell/ring_{{ now().strftime('%Y%m%d_%H%M%S') }}.jpg"
+    - action: camera.snapshot
+      target:
+        entity_id: camera.front_door_fluent
+      data:
+        filename: "/media/{{ file }}"
+    - delay: { seconds: 1 }
+    - action: notify.mobile_app_ollie_s25_ultra
+      data:
+        title: "🔔 Someone is at the door"
+        message: "Doorbell pressed at {{ now().strftime('%H:%M') }}"
+        data:
+          image: "/media/local/{{ file }}"
+          channel: Doorbell
+          importance: high
+          priority: high
+          ttl: 0
+          tag: doorbell
+          clickAction: "entityId:camera.front_door_fluent"
+          actions:
+            - action: URI
+              title: "Live view"
+              uri: "entityId:camera.front_door_fluent"
+    - delay: { seconds: 10 }
+
+- id: doorbell_person_picture
+  alias: Doorbell - person detected - picture notification
+  description: Snapshot + notification on person detection (max once per 2 min, skipped if bell just pressed).
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_door_person
+      to: "on"
+  conditions:
+    - condition: template
+      value_template: >
+        {{ (now() - states.binary_sensor.front_door_visitor.last_changed).total_seconds() > 60 }}
+  actions:
+    - variables:
+        file: "doorbell/person_{{ now().strftime('%Y%m%d_%H%M%S') }}.jpg"
+    - action: camera.snapshot
+      target:
+        entity_id: camera.front_door_fluent
+      data:
+        filename: "/media/{{ file }}"
+    - delay: { seconds: 1 }
+    - action: notify.mobile_app_ollie_s25_ultra
+      data:
+        title: "🚶 Person at the front door"
+        message: "Detected at {{ now().strftime('%H:%M') }}"
+        data:
+          image: "/media/local/{{ file }}"
+          channel: Doorbell motion
+          importance: default
+          tag: doorbell_person
+          clickAction: "entityId:camera.front_door_fluent"
+    - delay: { minutes: 2 }
+
+- id: doorbell_snapshot_cleanup
+  alias: Doorbell - clean up old snapshots
+  description: Deletes doorbell snapshots older than 14 days, nightly at 03:17.
+  mode: single
+  triggers:
+    - trigger: time
+      at: "03:17:00"
+  actions:
+    - action: shell_command.cleanup_doorbell_snapshots
+
+- id: ha_started_notification
+  alias: Home Assistant - started notification
+  description: Tells you when HA comes back up (e.g. after a Windows restart).
+  mode: single
+  triggers:
+    - trigger: homeassistant
+      event: start
+  actions:
+    - action: notify.mobile_app_ollie_s25_ultra
+      data:
+        title: "Home Assistant is online"
+        message: "Started at {{ now().strftime('%H:%M %d %b') }}"
