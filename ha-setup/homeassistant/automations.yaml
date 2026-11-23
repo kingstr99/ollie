@@ -1,40 +1,7 @@
 # Paste this whole file into /homeassistant/automations.yaml (File editor), replacing what's there.
 # Then: Settings > Automations & scenes > (⋮) Reload automations.
 
-- id: doorbell_pressed_picture
-  alias: Doorbell - pressed - picture notification
-  description: Snapshot + high-priority notification when the doorbell button is pressed.
-  mode: single
-  triggers:
-    - trigger: state
-      entity_id: binary_sensor.front_door_visitor
-      to: "on"
-  actions:
-    - variables:
-        file: "doorbell/ring_{{ now().strftime('%Y%m%d_%H%M%S') }}.jpg"
-    - action: camera.snapshot
-      target:
-        entity_id: camera.front_door_fluent
-      data:
-        filename: "/media/{{ file }}"
-    - delay: { seconds: 1 }
-    - action: notify.mobile_app_ollie_s25_ultra
-      data:
-        title: "🔔 Someone is at the door"
-        message: "Doorbell pressed at {{ now().strftime('%H:%M') }}"
-        data:
-          image: "/media/local/{{ file }}"
-          channel: Doorbell
-          importance: high
-          priority: high
-          ttl: 0
-          tag: doorbell
-          clickAction: "entityId:camera.front_door_fluent"
-          actions:
-            - action: URI
-              title: "Live view"
-              uri: "entityId:camera.front_door_fluent"
-    - delay: { seconds: 10 }
+# Doorbell presses are handled by the Reolink app's full-screen call (by choice).
 
 - id: doorbell_motion_picture
   alias: Doorbell - motion or person - picture notification
